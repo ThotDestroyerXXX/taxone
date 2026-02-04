@@ -4,6 +4,8 @@ package com.example.taxone.config;
 import com.example.taxone.repository.TokenRepository;
 import com.example.taxone.repository.UserRepository;
 import com.example.taxone.security.CustomUserDetailsService;
+import com.example.taxone.security.JwtAccessDeniedHandler;
+import com.example.taxone.security.JwtAuthenticationEntryPoint;
 import com.example.taxone.security.JwtAuthenticationFilter;
 import com.example.taxone.service.AuthenticationService;
 import lombok.RequiredArgsConstructor;
@@ -44,7 +46,10 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http,
+                                                   JwtAuthenticationFilter jwtAuthenticationFilter,
+                                                   JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
+                                                   JwtAccessDeniedHandler jwtAccessDeniedHandler) {
         http
                 .authorizeHttpRequests(request -> request
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/login").permitAll()
@@ -53,6 +58,10 @@ public class SecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .csrf(AbstractHttpConfigurer::disable)
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint(jwtAuthenticationEntryPoint)
+                        .accessDeniedHandler(jwtAccessDeniedHandler)
+                )
                 .sessionManagement(session ->
                         session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
