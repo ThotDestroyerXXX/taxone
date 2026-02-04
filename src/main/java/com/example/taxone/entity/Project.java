@@ -63,12 +63,13 @@ public class Project {
     @Column(name = "description", nullable = false, columnDefinition = "TEXT")
     private String description;
 
-    @Column(name = "key", nullable = false)
-    private String key;
+    @Column(name = "project_key", nullable = false)
+    private String projectKey;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "status",  nullable = false)
-    private ProjectStatus status;
+    @Builder.Default
+    private ProjectStatus status = ProjectStatus.ACTIVE;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "priority",   nullable = false)

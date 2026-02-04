@@ -21,7 +21,7 @@ import java.util.UUID;
 @Table(name = "workspaces")
 public class Workspace {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.UUID)
     @Column(name = "id", updatable = false, unique = true,  nullable = false)
     private UUID id;
 
@@ -38,7 +38,7 @@ public class Workspace {
     @Column(name = "slug", nullable = false, unique = true)
     private String slug;
 
-    @Column(name = "logo_url", nullable = false)
+    @Column(name = "logo_url", nullable = true)
     private String logoUrl;
 
     @Column(name = "is_active", nullable = false)
