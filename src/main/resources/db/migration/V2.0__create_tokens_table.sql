@@ -4,8 +4,8 @@ CREATE TABLE tokens (
     user_id     BINARY(16)      NOT NULL,
     token       VARCHAR(255)    NOT NULL,
     token_type  VARCHAR(20)     NOT NULL DEFAULT 'BEARER',
-    expired     BOOLEAN         DEFAULT FALSE,
-    revoked     BOOLEAN         DEFAULT FALSE,
+    is_expired  BOOLEAN         DEFAULT FALSE,
+    is_revoked  BOOLEAN         DEFAULT FALSE,
     created_at  TIMESTAMP       DEFAULT CURRENT_TIMESTAMP,
     expires_at  TIMESTAMP       NULL,
 
