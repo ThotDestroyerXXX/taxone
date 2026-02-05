@@ -22,7 +22,15 @@ public class WorkspaceMember {
         OWNER,
         ADMIN,
         MEMBER,
-        VIEWER,
+        VIEWER;
+
+        public boolean isHigherThan(MemberType other) {
+            return this.ordinal() < other.ordinal();
+        }
+
+        public boolean isLowerThan(MemberType other) {
+            return this.ordinal() > other.ordinal();
+        }
     }
 
     @Id

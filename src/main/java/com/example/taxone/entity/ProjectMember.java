@@ -22,7 +22,15 @@ public class ProjectMember {
     public enum ProjectMemberType {
         PROJECT_LEAD,
         CONTRIBUTOR,
-        VIEWER,
+        VIEWER;
+
+        public boolean isHigherThan(ProjectMemberType other) {
+            return this.ordinal() < other.ordinal();
+        }
+
+        public boolean isLowerThan(ProjectMemberType other) {
+            return this.ordinal() > other.ordinal();
+        }
     }
 
     @Id

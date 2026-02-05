@@ -3,7 +3,7 @@ CREATE TABLE workspace_members (
     id              BINARY(16)      PRIMARY KEY,
     workspace_id    BINARY(16)      NOT NULL,
     user_id         BINARY(16)      NOT NULL,
-    invited_by      BINARY(16)      NOT NULL,
+    invited_by      BINARY(16)      NULL,
     member_type     ENUM('OWNER',
                         'ADMIN',
                         'MEMBER',
