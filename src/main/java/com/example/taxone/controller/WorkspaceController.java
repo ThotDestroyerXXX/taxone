@@ -10,7 +10,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/workspaces")
@@ -43,4 +42,18 @@ public class WorkspaceController {
         WorkspaceResponse response = workspaceService.updateWorkspace(id, workspaceRequest);
         return ResponseEntity.ok(response);
     }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteWorkspace(@PathVariable String id) {
+        workspaceService.deleteWorkspace(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/restore")
+    public ResponseEntity<WorkspaceResponse> restoreWorkspace(@PathVariable String id) {
+        WorkspaceResponse response = workspaceService.restoreWorkspace(id);
+        return ResponseEntity.ok(response);
+    }
+
+    // TODO: UPDATE LOGO
 }

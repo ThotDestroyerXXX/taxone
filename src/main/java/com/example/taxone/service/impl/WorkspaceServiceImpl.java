@@ -11,13 +11,13 @@ import com.example.taxone.mapper.WorkspaceMapper;
 import com.example.taxone.repository.WorkspaceRepository;
 import com.example.taxone.security.CustomUserDetails;
 import com.example.taxone.service.WorkspaceService;
+import com.example.taxone.util.UUIDUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -31,9 +31,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     public WorkspaceResponse createWorkspace(WorkspaceRequest workspaceRequest) {
         User user = getCurrentUser();
 
-        if(!isUniqueSlug(workspaceRequest.getSlug())) {
-            throw new BusinessValidationException("slug", "Slug must be unique");
-        }
+        ensureUniqueSlug(workspaceRequest.getSlug());
 
         Workspace newWorkspace = Workspace
                 .builder()
@@ -63,12 +61,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     public WorkspaceResponse getWorkspace(String id) {
         User user = getCurrentUser();
 
-        UUID workspaceId;
-        try {
-            workspaceId = UUID.fromString(id);
-        } catch (IllegalArgumentException e) {
-            throw new BusinessValidationException("id", "Invalid workspace id");
-        }
+        UUID workspaceId = UUIDUtils.fromString(id, "workspace");
 
         Workspace workspace = workspaceRepository
                 .findByIdAndUserHasAccess(workspaceId, user.getId())
@@ -81,24 +74,14 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     public WorkspaceResponse updateWorkspace(String id, WorkspaceRequest request) {
         User user = getCurrentUser();
 
-        UUID workspaceId;
-        try {
-            workspaceId = UUID.fromString(id);
-        } catch (IllegalArgumentException e) {
-            throw new BusinessValidationException("id", "Invalid workspace id");
-        }
+        UUID workspaceId = UUIDUtils.fromString(id, "workspace");
 
         Workspace workspace = workspaceRepository.findById(workspaceId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Workspace not found"));
 
-        if (!isOwnerOfWorkspace(user, workspace)) {
-            throw new ForbiddenException("You are not allowed to update this workspace");
-        }
-
-        if (!isSlugUniqueForUpdate(request.getSlug(), workspace.getId())) {
-            throw new BusinessValidationException("slug", "Slug must be unique");
-        }
+        ensureOwnerOfWorkspace(user, workspace);
+        ensureSlugUniqueForUpdate(request.getSlug(),  workspaceId);
 
         // Update existing entity (IMPORTANT)
         workspace.setName(request.getName());
@@ -109,6 +92,38 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         Workspace saved = workspaceRepository.save(workspace);
 
         return workspaceMapper.toResponse(saved);
+    }
+
+    @Override
+    public void deleteWorkspace(String id) {
+        User user = getCurrentUser();
+        UUID workspaceId = UUIDUtils.fromString(id, "workspace");
+
+        Workspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Workspace not found"));
+
+        ensureOwnerOfWorkspace(user, workspace);
+
+        workspace.setIsActive(false);
+        workspaceRepository.save(workspace);
+    }
+
+    @Override
+    public WorkspaceResponse restoreWorkspace(String id) {
+        User user = getCurrentUser();
+        UUID workspaceId = UUIDUtils.fromString(id, "workspace");
+
+        Workspace workspace = workspaceRepository.findById(workspaceId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Workspace not found"));
+
+        ensureOwnerOfWorkspace(user, workspace);
+
+        workspace.setIsActive(true);
+        workspaceRepository.save(workspace);
+
+        return workspaceMapper.toResponse(workspace);
     }
 
     // helper methods
@@ -122,15 +137,21 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         throw new IllegalStateException("User not authenticated");
     }
 
-    private Boolean isUniqueSlug(String slug) {
-        return !workspaceRepository.existsBySlug(slug);
+    private void ensureUniqueSlug(String slug) {
+        if(workspaceRepository.existsBySlug(slug)) {
+            throw new BusinessValidationException("slug", "Slug must be unique");
+        }
     }
 
-    private Boolean isOwnerOfWorkspace(User user, Workspace workspace) {
-        return workspace.getOwner().getId().equals(user.getId());
+    private void ensureOwnerOfWorkspace(User user, Workspace workspace) {
+        if (!workspace.getOwner().getId().equals(user.getId())) {
+            throw new ForbiddenException("You are not allowed to update this workspace");
+        }
     }
 
-    private boolean isSlugUniqueForUpdate(String slug, UUID workspaceId) {
-        return !workspaceRepository.existsBySlugAndIdNot(slug, workspaceId);
+    private void ensureSlugUniqueForUpdate(String slug, UUID workspaceId) {
+        if (workspaceRepository.existsBySlugAndIdNot(slug, workspaceId)) {
+            throw new BusinessValidationException("slug", "Slug must be unique");
+        }
     }
 }
