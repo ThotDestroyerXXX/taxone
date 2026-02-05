@@ -2,11 +2,7 @@ package com.example.taxone.mapper;
 
 
 import com.example.taxone.dto.response.WorkspaceInvitationResponse;
-import com.example.taxone.dto.response.WorkspaceMemberResponse;
-import com.example.taxone.dto.response.WorkspaceResponse;
-import com.example.taxone.entity.Workspace;
 import com.example.taxone.entity.WorkspaceInvitation;
-import com.example.taxone.entity.WorkspaceMember;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.mapstruct.Mapper;
 

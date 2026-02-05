@@ -4,7 +4,6 @@ package com.example.taxone.service.impl;
 import com.example.taxone.dto.request.UserRequest;
 import com.example.taxone.dto.response.UserResponse;
 import com.example.taxone.entity.User;
-import com.example.taxone.exception.ResourceNotFoundException;
 import com.example.taxone.mapper.UserMapper;
 import com.example.taxone.repository.UserRepository;
 import com.example.taxone.security.CustomUserDetails;
