@@ -1,9 +1,11 @@
 package com.example.taxone.controller;
 
 
+import com.example.taxone.dto.request.ProjectRequest;
 import com.example.taxone.dto.request.WorkspaceInvitationRequest;
 import com.example.taxone.dto.request.WorkspaceMemberRoleRequest;
 import com.example.taxone.dto.request.WorkspaceRequest;
+import com.example.taxone.dto.response.ProjectResponse;
 import com.example.taxone.dto.response.WorkspaceInvitationResponse;
 import com.example.taxone.dto.response.WorkspaceMemberResponse;
 import com.example.taxone.dto.response.WorkspaceResponse;
@@ -12,6 +14,7 @@ import com.example.taxone.service.WorkspaceService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.apache.coyote.Response;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,7 +27,7 @@ public class WorkspaceController {
 
     private final WorkspaceService workspaceService;
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<WorkspaceResponse> createWorkspace(@RequestBody @Valid WorkspaceRequest workspaceRequest) {
         return ResponseEntity.ok(workspaceService.createWorkspace(workspaceRequest));
     }
@@ -111,4 +114,19 @@ public class WorkspaceController {
         workspaceService.cancelInvite(workspaceId, invitationId);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/{workspaceId}/projects")
+    public ResponseEntity<ProjectResponse> createProject(@PathVariable String workspaceId,
+                                                         @RequestBody @Valid ProjectRequest projectRequest) {
+        ProjectResponse response = workspaceService.createProject(workspaceId, projectRequest);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{workspaceId}/projects")
+    public ResponseEntity<List<ProjectResponse>> getProjects(@PathVariable String workspaceId) {
+        List<ProjectResponse> response = workspaceService.getProjects(workspaceId);
+        return ResponseEntity.ok(response);
+    }
+
+
 }

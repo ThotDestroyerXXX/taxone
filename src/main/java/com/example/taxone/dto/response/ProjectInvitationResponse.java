@@ -2,7 +2,7 @@ package com.example.taxone.dto.response;
 
 
 import com.example.taxone.entity.InvitationStatus;
-import com.example.taxone.entity.WorkspaceMember;
+import com.example.taxone.entity.ProjectMember;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -14,10 +14,10 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class WorkspaceInvitationResponse {
+public class ProjectInvitationResponse {
     private UUID id;
     private String email;
     private UserResponse invitedBy;
-    private WorkspaceMember.MemberType memberType;
+    private ProjectMember.ProjectMemberType memberType;
     private InvitationStatus status;
 }

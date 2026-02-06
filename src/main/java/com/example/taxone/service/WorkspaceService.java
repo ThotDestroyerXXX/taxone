@@ -1,8 +1,10 @@
 package com.example.taxone.service;
 
+import com.example.taxone.dto.request.ProjectRequest;
 import com.example.taxone.dto.request.WorkspaceInvitationRequest;
 import com.example.taxone.dto.request.WorkspaceMemberRoleRequest;
 import com.example.taxone.dto.request.WorkspaceRequest;
+import com.example.taxone.dto.response.ProjectResponse;
 import com.example.taxone.dto.response.WorkspaceInvitationResponse;
 import com.example.taxone.dto.response.WorkspaceMemberResponse;
 import com.example.taxone.dto.response.WorkspaceResponse;
@@ -25,4 +27,6 @@ public interface WorkspaceService {
 
     List<WorkspaceInvitationResponse> getPendingInvites(String workspaceId);
     void cancelInvite(String workspaceId, String invitationId);
+    ProjectResponse createProject(String workspaceId, ProjectRequest projectRequest);
+    List<ProjectResponse> getProjects(String workspaceId);
 }

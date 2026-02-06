@@ -1,8 +1,10 @@
 package com.example.taxone.service.impl;
 
+import com.example.taxone.dto.request.ProjectRequest;
 import com.example.taxone.dto.request.WorkspaceInvitationRequest;
 import com.example.taxone.dto.request.WorkspaceMemberRoleRequest;
 import com.example.taxone.dto.request.WorkspaceRequest;
+import com.example.taxone.dto.response.ProjectResponse;
 import com.example.taxone.dto.response.WorkspaceInvitationResponse;
 import com.example.taxone.dto.response.WorkspaceMemberResponse;
 import com.example.taxone.dto.response.WorkspaceResponse;
@@ -10,20 +12,24 @@ import com.example.taxone.entity.*;
 import com.example.taxone.exception.BusinessValidationException;
 import com.example.taxone.exception.ForbiddenException;
 import com.example.taxone.exception.ResourceNotFoundException;
+import com.example.taxone.mapper.ProjectMapper;
 import com.example.taxone.mapper.WorkspaceInvitationMapper;
 import com.example.taxone.mapper.WorkspaceMapper;
 import com.example.taxone.mapper.WorkspaceMemberMapper;
+import com.example.taxone.repository.ProjectRepository;
 import com.example.taxone.repository.WorkspaceInvitationRepository;
 import com.example.taxone.repository.WorkspaceMemberRepository;
 import com.example.taxone.repository.WorkspaceRepository;
 import com.example.taxone.security.CustomUserDetails;
 import com.example.taxone.service.WorkspaceService;
+import com.example.taxone.util.ColorUtils;
 import com.example.taxone.util.UUIDUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
+import java.awt.*;
 import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
@@ -35,9 +41,11 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     private final WorkspaceRepository workspaceRepository;
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final WorkspaceInvitationRepository  workspaceInvitationRepository;
+    private final ProjectRepository projectRepository;
     private final WorkspaceMapper workspaceMapper;
     private final WorkspaceMemberMapper workspaceMemberMapper;
     private final WorkspaceInvitationMapper workspaceInvitationMapper;
+    private final ProjectMapper projectMapper;
 
     @Override
     public WorkspaceResponse createWorkspace(WorkspaceRequest workspaceRequest) {
@@ -283,6 +291,45 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
         invite.setStatus(InvitationStatus.CANCELLED);
         workspaceInvitationRepository.save(invite);
+    }
+
+    @Override
+    public ProjectResponse createProject(String workspaceId, ProjectRequest projectRequest) {
+        User user = getCurrentUser();
+        UUID workspaceUUID = UUIDUtils.fromString(workspaceId, "workspace");
+
+        ensureRoleInWorkspaceMember(workspaceUUID, user.getId(),
+                WorkspaceMember.MemberType.OWNER, WorkspaceMember.MemberType.ADMIN);
+
+        Color color = ColorUtils.hexToColor(projectRequest.getColor());
+        Project project = Project
+                .builder()
+                .projectKey(projectRequest.getProjectKey())
+                .color(color)
+                .description(projectRequest.getDescription())
+                .endDate(projectRequest.getEndDate())
+                .isPublic(projectRequest.getIsPublic())
+                .name(projectRequest.getName())
+                .owner(user)
+                .priority(projectRequest.getPriority())
+                .startDate(projectRequest.getStartDate())
+                .build();
+
+        projectRepository.save(project);
+
+        return projectMapper.toResponse(project);
+    }
+
+    @Override
+    public List<ProjectResponse> getProjects(String workspaceId) {
+        User user = getCurrentUser();
+        UUID workspaceUUID = UUIDUtils.fromString(workspaceId, "workspace");
+
+        ensureWorkspaceMember(user.getId(), workspaceUUID);
+
+        List<Project> projects = projectRepository.findVisibleProjects(workspaceUUID, user.getId());
+
+        return projectMapper.toResponseList(projects);
     }
 
     // helper methods
