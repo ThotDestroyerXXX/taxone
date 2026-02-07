@@ -20,8 +20,8 @@ public interface WorkspaceRepository extends JpaRepository<Workspace, UUID> {
     SELECT DISTINCT w
     FROM Workspace w
     LEFT JOIN w.workspaceMembers m
-    WHERE w.owner.id = :userId
-       OR m.user.id = :userId
+    WHERE w.isActive = TRUE AND (w.owner.id = :userId
+       OR m.user.id = :userId)
 """)
     List<Workspace> findAllByUserId(@Param("userId") UUID userId);
 
@@ -29,7 +29,7 @@ public interface WorkspaceRepository extends JpaRepository<Workspace, UUID> {
     SELECT w
     FROM Workspace w
     LEFT JOIN w.workspaceMembers m
-    WHERE w.id = :workspaceId
+    WHERE w.isActive = TRUE AND w.id = :workspaceId
       AND (w.owner.id = :userId OR m.user.id = :userId)
 """)
     Optional<Workspace> findByIdAndUserHasAccess(

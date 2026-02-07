@@ -2,6 +2,7 @@ package com.example.taxone.dto.request;
 
 import com.example.taxone.dto.response.UserResponse;
 import com.example.taxone.entity.Project;
+import com.example.taxone.validator.ValueOfEnum;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -32,8 +33,8 @@ public class ProjectRequest {
     @Size(min = 3, max = 20, message = "project key must be between 3 and 20 characters")
     private String projectKey;
 
-    @NotNull(message = "priority is required")
-    private Project.ProjectPriority priority;
+    @ValueOfEnum(enumClass = Project.ProjectPriority.class, message = "Priority should be valid")
+    private String priority;
 
     @NotBlank(message = "color is required")
     @Pattern(
@@ -42,14 +43,14 @@ public class ProjectRequest {
     )
     private String color;
 
-    @NotBlank(message = "start date is required")
+    @NotNull(message = "start date is required")
     @JsonFormat(pattern = "yyyy-MM-dd")
-    private Date startDate;
+    private String startDate;
 
     @NotBlank(message = "end date is required")
     @JsonFormat(pattern = "yyyy-MM-dd")
-    private Date endDate;
+    private String endDate;
 
-    @NotBlank(message = "publicity is required")
+    @NotNull(message = "publicity is required")
     private Boolean isPublic;
 }

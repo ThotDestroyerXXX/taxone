@@ -19,7 +19,7 @@ import com.example.taxone.repository.ProjectRepository;
 import com.example.taxone.repository.TaskRepository;
 import com.example.taxone.security.CustomUserDetails;
 import com.example.taxone.service.ProjectService;
-import com.example.taxone.util.ColorUtils;
+import com.example.taxone.util.DateUtils;
 import com.example.taxone.util.UUIDUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -68,15 +68,13 @@ public class ProjectServiceImpl implements ProjectService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Project not found"));
 
-        Color color = ColorUtils.hexToColor(projectRequest.getColor());
-
         project.setName(projectRequest.getName());
         project.setDescription(projectRequest.getDescription());
-        project.setColor(color);
-        project.setEndDate(projectRequest.getEndDate());
+        project.setColor(projectRequest.getColor());
+        project.setEndDate(DateUtils.parseToDate(projectRequest.getEndDate(), "endDate"));
         project.setIsPublic(projectRequest.getIsPublic());
-        project.setPriority(projectRequest.getPriority());
-        project.setStartDate(projectRequest.getStartDate());
+        project.setPriority(Project.ProjectPriority.valueOf(projectRequest.getPriority()));
+        project.setStartDate(DateUtils.parseToDate(projectRequest.getStartDate(), "startDate"));
 
         if(!projectRequest.getProjectKey().equals(project.getProjectKey())) {
             List<Task> tasks = taskRepository.findAllByProjectId(project.getId());
@@ -169,9 +167,12 @@ public class ProjectServiceImpl implements ProjectService {
         ensureRoleInProjectMember(projectUUID, user.getId(),
                 ProjectMember.ProjectMemberType.PROJECT_LEAD, ProjectMember.ProjectMemberType.CONTRIBUTOR);
 
+        // ensure no duplicate invite
+        ensureOnlyInviteNonMember(projectUUID, invitationRequest.getEmail());
+
         ProjectInvitation newInvite = ProjectInvitation
                 .builder()
-                .memberType(invitationRequest.getMemberType())
+                .memberType(ProjectMember.ProjectMemberType.valueOf(invitationRequest.getMemberType()))
                 .invitedBy(user)
                 .project(project)
                 .email(invitationRequest.getEmail())
@@ -200,7 +201,7 @@ public class ProjectServiceImpl implements ProjectService {
 
         ProjectMember.ProjectMemberType currentRole = currentUserMember.getMemberType();
         ProjectMember.ProjectMemberType targetRole = member.getMemberType();
-        ProjectMember.ProjectMemberType newRole = roleRequest.getMemberType();
+        ProjectMember.ProjectMemberType newRole = ProjectMember.ProjectMemberType.valueOf(roleRequest.getMemberType());
 
         checkIsValidWorkspaceRoleChange(currentRole, targetRole, newRole);
 
@@ -279,6 +280,12 @@ public class ProjectServiceImpl implements ProjectService {
         // 5️⃣ Prevent no-op updates
         if (targetRole == newRole) {
             throw new BusinessValidationException("memberType", "Role is already assigned");
+        }
+    }
+
+    private void ensureOnlyInviteNonMember(UUID projectId, String email) {
+        if(projectMemberRepository.existsByProject_IdAndUser_Email(projectId, email)) {
+            throw new IllegalStateException("User is already a member of this project");
         }
     }
 

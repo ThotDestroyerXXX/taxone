@@ -16,13 +16,10 @@ import com.example.taxone.mapper.ProjectMapper;
 import com.example.taxone.mapper.WorkspaceInvitationMapper;
 import com.example.taxone.mapper.WorkspaceMapper;
 import com.example.taxone.mapper.WorkspaceMemberMapper;
-import com.example.taxone.repository.ProjectRepository;
-import com.example.taxone.repository.WorkspaceInvitationRepository;
-import com.example.taxone.repository.WorkspaceMemberRepository;
-import com.example.taxone.repository.WorkspaceRepository;
+import com.example.taxone.repository.*;
 import com.example.taxone.security.CustomUserDetails;
 import com.example.taxone.service.WorkspaceService;
-import com.example.taxone.util.ColorUtils;
+import com.example.taxone.util.DateUtils;
 import com.example.taxone.util.UUIDUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
@@ -42,6 +39,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     private final WorkspaceMemberRepository workspaceMemberRepository;
     private final WorkspaceInvitationRepository  workspaceInvitationRepository;
     private final ProjectRepository projectRepository;
+    private final ProjectMemberRepository projectMemberRepository;
     private final WorkspaceMapper workspaceMapper;
     private final WorkspaceMemberMapper workspaceMemberMapper;
     private final WorkspaceInvitationMapper workspaceInvitationMapper;
@@ -186,12 +184,14 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         ensureRoleInWorkspaceMember(workspaceUUID, user.getId(),
                 WorkspaceMember.MemberType.OWNER, WorkspaceMember.MemberType.ADMIN);
 
+        ensureOnlyInviteNonMember(workspaceUUID, invitationRequest.getEmail());
+
         // invite to member
         WorkspaceInvitation newInvite = WorkspaceInvitation
                                         .builder()
                                         .email(invitationRequest.getEmail())
                                         .invitedBy(user)
-                                        .memberType(invitationRequest.getMemberType())
+                                        .memberType(WorkspaceMember.MemberType.valueOf(invitationRequest.getMemberType()))
                                         .workspace(workspace)
                                         .build();
         workspaceInvitationRepository.save(newInvite);
@@ -204,6 +204,8 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         User user = getCurrentUser();
         UUID workspaceUUID = UUIDUtils.fromString(workspaceId, "workspace");
         UUID workspaceMemberId = UUIDUtils.fromString(memberId, "memberId");
+
+        ensureWorkspaceMember(user.getId(), workspaceUUID);
 
         // find member by searching for workspace id and member id
         WorkspaceMember member = workspaceMemberRepository.findByIdAndWorkspaceId(workspaceMemberId, workspaceUUID)
@@ -231,7 +233,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
         WorkspaceMember.MemberType currentRole = currentUserMember.getMemberType();
         WorkspaceMember.MemberType targetRole = member.getMemberType();
-        WorkspaceMember.MemberType newRole = memberRoleRequest.getMemberType();
+        WorkspaceMember.MemberType newRole = WorkspaceMember.MemberType.valueOf(memberRoleRequest.getMemberType());
 
         checkIsValidWorkspaceRoleChange(currentRole, targetRole, newRole);
 
@@ -301,21 +303,34 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         ensureRoleInWorkspaceMember(workspaceUUID, user.getId(),
                 WorkspaceMember.MemberType.OWNER, WorkspaceMember.MemberType.ADMIN);
 
-        Color color = ColorUtils.hexToColor(projectRequest.getColor());
+        Workspace workspace = workspaceRepository.findById(workspaceUUID)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("workspace not found"));
+
         Project project = Project
                 .builder()
                 .projectKey(projectRequest.getProjectKey())
-                .color(color)
+                .workspace(workspace)
+                .color(projectRequest.getColor())
                 .description(projectRequest.getDescription())
-                .endDate(projectRequest.getEndDate())
+                .endDate(DateUtils.parseToDate(projectRequest.getEndDate(), "endDate"))
                 .isPublic(projectRequest.getIsPublic())
                 .name(projectRequest.getName())
                 .owner(user)
-                .priority(projectRequest.getPriority())
-                .startDate(projectRequest.getStartDate())
+                .priority(Project.ProjectPriority.valueOf(projectRequest.getPriority()))
+                .startDate(DateUtils.parseToDate(projectRequest.getStartDate(), "startDate"))
                 .build();
 
         projectRepository.save(project);
+
+        ProjectMember member = ProjectMember
+                .builder()
+                .memberType(ProjectMember.ProjectMemberType.PROJECT_LEAD)
+                .project(project)
+                .user(user)
+                .build();
+
+        projectMemberRepository.save(member);
 
         return projectMapper.toResponse(project);
     }
@@ -358,7 +373,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     private void ensureRoleInWorkspaceMember(UUID workspaceId, UUID userId, WorkspaceMember.MemberType... memberTypes) {
         WorkspaceMember member = workspaceMemberRepository.findByUserIdAndWorkspaceId(userId, workspaceId)
                 .orElseThrow(() ->
-                        new ResourceNotFoundException("Member not found"));
+                        new ResourceNotFoundException("You are not a member of this workspace"));
 
         boolean hasRole = Arrays.stream(memberTypes)
                 .anyMatch(role -> role == member.getMemberType());
@@ -406,6 +421,12 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         // 5️⃣ Prevent no-op updates
         if (targetRole == newRole) {
             throw new BusinessValidationException("memberType", "Role is already assigned");
+        }
+    }
+
+    private void ensureOnlyInviteNonMember(UUID workspaceId, String email) {
+        if(workspaceMemberRepository.existsByWorkspace_IdAndUser_Email(workspaceId, email)) {
+            throw new IllegalStateException("User is already a member of this workspace");
         }
     }
 }

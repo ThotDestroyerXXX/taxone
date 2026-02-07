@@ -9,7 +9,6 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
-import java.awt.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Date;
@@ -81,8 +80,8 @@ public class Project {
     @Column(name = "end_date", nullable = false)
     private Date endDate;
 
-    @Column(name = "color", nullable = false)
-    private Color color;
+    @Column(name = "color", nullable = false, length = 7)
+    private String color;
 
     @Column(name = "is_public", nullable = false)
     @Builder.Default

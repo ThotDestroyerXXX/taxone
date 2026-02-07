@@ -1,6 +1,8 @@
 package com.example.taxone.dto.request;
 
 import com.example.taxone.entity.ProjectMember;
+import com.example.taxone.entity.WorkspaceMember;
+import com.example.taxone.validator.ValueOfEnum;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,6 +14,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProjectMemberRoleRequest {
-    @NotBlank(message = "role is required")
-    private ProjectMember.ProjectMemberType memberType;
+    @ValueOfEnum(enumClass = ProjectMember.ProjectMemberType.class, message = "role should be valid")
+    private String memberType;
 }

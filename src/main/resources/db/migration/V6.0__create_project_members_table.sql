@@ -3,7 +3,7 @@ CREATE TABLE project_members (
     id          BINARY(16)      PRIMARY KEY,
     project_id  BINARY(16)      NOT NULL,
     user_id     BINARY(16)      NOT NULL,
-    added_by    BINARY(16)      NOT NULL,
+    added_by    BINARY(16)      NULL,
     member_type ENUM(
                 'PROJECT_LEAD',
                 'CONTRIBUTOR',

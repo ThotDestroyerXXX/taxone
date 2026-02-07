@@ -14,10 +14,11 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Entity
 @Table(name = "project_invitations",
         uniqueConstraints = {
-                @UniqueConstraint(name = "uq_workspace_invited_by_status", columnNames = {
-                        "workspace_id",
+                @UniqueConstraint(name = "uq_project_invited_by_status", columnNames = {
+                        "project_id",
                         "invited_by",
                         "status"
                 })

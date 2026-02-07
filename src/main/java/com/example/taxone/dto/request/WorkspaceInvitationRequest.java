@@ -2,6 +2,7 @@ package com.example.taxone.dto.request;
 
 
 import com.example.taxone.entity.WorkspaceMember;
+import com.example.taxone.validator.ValueOfEnum;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
@@ -19,5 +20,6 @@ public class WorkspaceInvitationRequest {
     @Email(message = "Email should be valid")
     private String email;
 
-    private WorkspaceMember.MemberType memberType;
+    @ValueOfEnum(enumClass = WorkspaceMember.MemberType.class, message = "role should be valid")
+    private String memberType;
 }

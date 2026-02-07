@@ -46,8 +46,8 @@ public class ProjectMember {
     @JoinColumn(name = "user_id",  nullable = false)
     private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "added_by", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "added_by", nullable = true)
     private User addedBy;
 
     @Enumerated(EnumType.STRING)

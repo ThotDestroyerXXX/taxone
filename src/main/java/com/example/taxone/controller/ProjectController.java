@@ -3,11 +3,13 @@ package com.example.taxone.controller;
 import com.example.taxone.dto.request.ProjectInvitationRequest;
 import com.example.taxone.dto.request.ProjectMemberRoleRequest;
 import com.example.taxone.dto.request.ProjectRequest;
+import com.example.taxone.dto.request.TaskRequest;
 import com.example.taxone.dto.response.ProjectInvitationResponse;
 import com.example.taxone.dto.response.ProjectMemberResponse;
 import com.example.taxone.dto.response.ProjectResponse;
-import com.example.taxone.dto.response.UserResponse;
+import com.example.taxone.dto.response.TaskResponse;
 import com.example.taxone.service.ProjectService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -29,7 +31,7 @@ public class ProjectController {
 
     @PutMapping("/{projectId}")
     public ResponseEntity<ProjectResponse> updateProject(@PathVariable String projectId,
-                                                         @RequestBody ProjectRequest projectRequest) {
+                                                         @RequestBody @Valid ProjectRequest projectRequest) {
         ProjectResponse response = projectService.updateProject(projectId, projectRequest);
         return ResponseEntity.ok(response);
     }
@@ -61,7 +63,7 @@ public class ProjectController {
     @PostMapping("/{projectId}/members")
     public ResponseEntity<ProjectInvitationResponse> inviteMember(
             @PathVariable String projectId,
-            @RequestBody ProjectInvitationRequest invitationRequest) {
+            @RequestBody @Valid ProjectInvitationRequest invitationRequest) {
         ProjectInvitationResponse response = projectService.inviteMember(projectId, invitationRequest);
         return ResponseEntity.ok(response);
     }
@@ -69,7 +71,7 @@ public class ProjectController {
     @PatchMapping("/{projectId}/members/{memberId}")
     public ResponseEntity<ProjectMemberResponse> updateMemberRole(@PathVariable String projectId,
                                                                   @PathVariable String memberId,
-                                                                  ProjectMemberRoleRequest roleRequest) {
+                                                                  @RequestBody @Valid ProjectMemberRoleRequest roleRequest) {
         ProjectMemberResponse response = projectService.updateMemberRole(projectId, memberId, roleRequest);
         return ResponseEntity.ok(response);
     }
@@ -79,4 +81,10 @@ public class ProjectController {
         projectService.deleteMember(projectId, memberId);
         return ResponseEntity.noContent().build();
     }
+
+//    @PostMapping("/{projectId}/tasks")
+//    public ResponseEntity<TaskResponse> createTask(@PathVariable String projectId,
+//                                                   @RequestBody TaskRequest taskRequest) {
+//
+//    }
 }

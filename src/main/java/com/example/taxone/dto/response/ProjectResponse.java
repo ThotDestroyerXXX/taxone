@@ -13,7 +13,7 @@ import java.util.UUID;
 @Builder
 public class ProjectResponse {
     private UUID id;
-    private UserResponse user;
+    private UserResponse owner;
     private String name;
     private String description;
     private String projectKey;

@@ -13,6 +13,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.text.ParseException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -138,6 +139,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(ApiErrorResponse.builder()
                         .status(403)
+                        .message(ex.getMessage())
+                        .build());
+    }
+
+    @ExceptionHandler(ParseException.class)
+    public ResponseEntity<ApiErrorResponse> handleParseException(ParseException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(ApiErrorResponse.builder()
+                        .status(400)
                         .message(ex.getMessage())
                         .build());
     }

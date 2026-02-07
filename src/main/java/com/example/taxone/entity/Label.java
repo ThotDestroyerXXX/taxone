@@ -8,7 +8,6 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.awt.*;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -33,8 +32,8 @@ public class Label {
     @Column(name = "name", nullable = false)
     private String name;
 
-    @Column(name = "color", nullable = false)
-    private Color color;
+    @Column(name = "color", nullable = false, length = 7)
+    private String color;
 
     @Column(name = "description",  nullable = false, columnDefinition = "TEXT")
     private String description;

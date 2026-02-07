@@ -22,4 +22,6 @@ public interface ProjectRepository extends JpaRepository<Project, UUID> {
             @Param("workspaceId") UUID workspaceId,
             @Param("userId") UUID userId
     );
+
+    List<Project> findAllByWorkspaceId(UUID id);
 }

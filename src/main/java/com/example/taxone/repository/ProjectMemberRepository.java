@@ -18,4 +18,6 @@ public interface ProjectMemberRepository extends JpaRepository<ProjectMember, UU
     List<ProjectMember> findAllByProjectId(UUID projectId);
 
     Optional<ProjectMember> findByIdAndProjectId(UUID projectId, UUID projectMemberId);
+
+    boolean existsByProject_IdAndUser_Email(UUID projectId, String email);
 }

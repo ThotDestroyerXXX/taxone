@@ -22,7 +22,7 @@ public class UserController {
     }
 
     @PutMapping("/me")
-    public ResponseEntity<UserResponse> updateOwnProfile(@Valid @RequestBody UserRequest userRequest) {
+    public ResponseEntity<UserResponse> updateOwnProfile(@RequestBody @Valid UserRequest userRequest) {
         UserResponse response = userService.updateOwnProfile(userRequest);
         return ResponseEntity.ok(response);
     }
