@@ -1,36 +1,29 @@
 package com.example.taxone.service.impl;
 
-import com.example.taxone.dto.request.ProjectInvitationRequest;
-import com.example.taxone.dto.request.ProjectMemberRoleRequest;
-import com.example.taxone.dto.request.ProjectRequest;
+import com.example.taxone.dto.request.*;
 import com.example.taxone.dto.response.ProjectInvitationResponse;
 import com.example.taxone.dto.response.ProjectMemberResponse;
 import com.example.taxone.dto.response.ProjectResponse;
+import com.example.taxone.dto.response.TaskResponse;
 import com.example.taxone.entity.*;
-import com.example.taxone.exception.BusinessValidationException;
-import com.example.taxone.exception.ForbiddenException;
 import com.example.taxone.exception.ResourceNotFoundException;
 import com.example.taxone.mapper.ProjectInvitationMapper;
 import com.example.taxone.mapper.ProjectMapper;
 import com.example.taxone.mapper.ProjectMemberMapper;
-import com.example.taxone.repository.ProjectInvitationRepository;
-import com.example.taxone.repository.ProjectMemberRepository;
-import com.example.taxone.repository.ProjectRepository;
-import com.example.taxone.repository.TaskRepository;
-import com.example.taxone.security.CustomUserDetails;
+import com.example.taxone.mapper.TaskMapper;
+import com.example.taxone.repository.*;
 import com.example.taxone.service.ProjectService;
+import com.example.taxone.util.AuthenticationHelper;
 import com.example.taxone.util.DateUtils;
+import com.example.taxone.util.PermissionHelper;
 import com.example.taxone.util.UUIDUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.awt.*;
-import java.util.Arrays;
+import java.util.*;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -43,13 +36,17 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectMapper projectMapper;
     private final ProjectMemberMapper projectMemberMapper;
     private final ProjectInvitationMapper projectInvitationMapper;
+    private final TaskMapper taskMapper;
+
+    private final AuthenticationHelper authenticationHelper;
+    private final PermissionHelper permissionHelper;
 
     @Override
     public ProjectResponse getProject(String projectId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID projectUUID = UUIDUtils.fromString(projectId, "project");
 
-        ensureProjectMemberOrIsPublic(projectUUID, user.getId());
+        permissionHelper.ensureProjectMemberOrIsPublic(projectUUID, user.getId());
 
         Project project = projectRepository.findById(projectUUID)
                 .orElseThrow(() ->
@@ -60,10 +57,10 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public ProjectResponse updateProject(String projectId, ProjectRequest projectRequest) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID projectUUID = UUIDUtils.fromString(projectId, "project");
 
-        ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.PROJECT_LEAD);
+        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.PROJECT_LEAD);
 
         Project project = projectRepository.findById(projectUUID)
                 .orElseThrow(() ->
@@ -98,10 +95,10 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     public ProjectResponse archiveProject(String projectId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID projectUUID = UUIDUtils.fromString(projectId, "project");
 
-        ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.PROJECT_LEAD);
+        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.PROJECT_LEAD);
 
         Project project = projectRepository.findById(projectUUID)
                 .orElseThrow(() ->
@@ -114,10 +111,10 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public ProjectResponse holdProject(String projectId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID projectUUID = UUIDUtils.fromString(projectId, "project");
 
-        ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.PROJECT_LEAD);
+        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.PROJECT_LEAD);
 
         Project project = projectRepository.findById(projectUUID)
                 .orElseThrow(() ->
@@ -130,10 +127,10 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public ProjectResponse restoreProject(String projectId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID projectUUID = UUIDUtils.fromString(projectId, "project");
 
-        ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.PROJECT_LEAD);
+        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.PROJECT_LEAD);
 
         Project project = projectRepository.findById(projectUUID)
                 .orElseThrow(() ->
@@ -146,10 +143,10 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public List<ProjectMemberResponse> getMembers(String projectId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID projectUUID = UUIDUtils.fromString(projectId, "project");
 
-        ensureProjectMemberOrIsPublic(projectUUID, user.getId());
+        permissionHelper.ensureProjectMemberOrIsPublic(projectUUID, user.getId());
 
         List<ProjectMember> projectMembers = projectMemberRepository.findAllByProjectId(projectUUID);
 
@@ -159,18 +156,18 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     @Transactional
     public ProjectInvitationResponse inviteMember(String projectId, ProjectInvitationRequest invitationRequest) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID projectUUID =  UUIDUtils.fromString(projectId, "project");
 
         Project project = projectRepository.findById(projectUUID)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Project not found"));
 
-        ensureRoleInProjectMember(projectUUID, user.getId(),
+        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(),
                 ProjectMember.ProjectMemberType.PROJECT_LEAD, ProjectMember.ProjectMemberType.CONTRIBUTOR);
 
-        // ensure no duplicate invite
-        ensureOnlyInviteNonMember(projectUUID, invitationRequest.getEmail());
+        // permissionHelper.ensure no duplicate invite
+        permissionHelper.ensureOnlyInviteNonMember(projectUUID, invitationRequest.getEmail());
 
         // change status of other pending status by invited by to expired
         projectInvitationRepository.expirePendingInvites(
@@ -195,7 +192,7 @@ public class ProjectServiceImpl implements ProjectService {
     @Override
     public ProjectMemberResponse updateMemberRole(String projectId, String memberId,
                                                   ProjectMemberRoleRequest roleRequest) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID projectUUID = UUIDUtils.fromString(projectId, "project");
         UUID memberUUID = UUIDUtils.fromString(memberId, "member");
 
@@ -213,7 +210,7 @@ public class ProjectServiceImpl implements ProjectService {
         ProjectMember.ProjectMemberType targetRole = member.getMemberType();
         ProjectMember.ProjectMemberType newRole = ProjectMember.ProjectMemberType.valueOf(roleRequest.getMemberType());
 
-        checkIsValidWorkspaceRoleChange(currentRole, targetRole, newRole);
+        permissionHelper.checkIsValidWorkspaceRoleChange(currentRole, targetRole, newRole);
 
         // Update role
         member.setMemberType(newRole);
@@ -224,7 +221,7 @@ public class ProjectServiceImpl implements ProjectService {
 
     @Override
     public void deleteMember(String projectId, String memberId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID projectUUID = UUIDUtils.fromString(projectId, "project");
         UUID memberUUID = UUIDUtils.fromString(memberId, "member");
 
@@ -233,14 +230,14 @@ public class ProjectServiceImpl implements ProjectService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Member not found"));
 
-        ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.PROJECT_LEAD);
+        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.PROJECT_LEAD);
 
         projectMemberRepository.delete(member);
     }
 
     @Override
     public ProjectInvitationResponse cancelProjectInvite(String projectId, String invitationId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID projectUUID = UUIDUtils.fromString(projectId, "project");
         UUID  invitationUUID = UUIDUtils.fromString(invitationId, "invitation");
 
@@ -248,10 +245,10 @@ public class ProjectServiceImpl implements ProjectService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Project not found"));
 
-        ensureRoleInProjectMember(projectUUID, user.getId(),
+        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(),
                 ProjectMember.ProjectMemberType.PROJECT_LEAD, ProjectMember.ProjectMemberType.CONTRIBUTOR);
 
-        // ensure that the invitation exists
+        // permissionHelper.ensure that the invitation exists
         ProjectInvitation existingProjectInvitation = projectInvitationRepository
                 .findById(invitationUUID)
                 .orElseThrow(() ->
@@ -263,65 +260,115 @@ public class ProjectServiceImpl implements ProjectService {
         return projectInvitationMapper.toResponse(existingProjectInvitation);
     }
 
-    // helper methods
-    private User getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+    @Override
+    public TaskResponse createTask(String projectId, TaskRequest taskRequest) {
+        User user = authenticationHelper.getCurrentUser();
+        UUID projectUUID = UUIDUtils.fromString(projectId, "project");
 
-        if (authentication != null && authentication.getPrincipal() instanceof CustomUserDetails userDetails) {
-            return userDetails.getUser();
-        }
+        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(),
+                ProjectMember.ProjectMemberType.PROJECT_LEAD, ProjectMember.ProjectMemberType.CONTRIBUTOR);
 
-        throw new IllegalStateException("User not authenticated");
-    }
-
-    private void ensureProjectMemberOrIsPublic(UUID projectId, UUID userId) {
-        Project project = projectRepository.findById(projectId)
+        Project project = projectRepository.findById(projectUUID)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Project not found"));
 
-        if(!project.getIsPublic()) {
-            ProjectMember member = projectMemberRepository.findByUserIdAndProjectId(userId, projectId)
-                    .orElseThrow(() ->
-                            new ForbiddenException("You are not allowed to view this project"));
-        }
+        String taskKey = permissionHelper.generateNextTaskKey(project.getId());
+
+        // Get assignees if provided
+        List<User> assignees = permissionHelper.ensureAllAssigneeExists(taskRequest.getAssigneeIds());
+
+        Task newTask = Task
+                .builder()
+                .project(project)
+                .taskKey(taskKey)
+                .description(taskRequest.getDescription())
+                .dueDate(taskRequest.getDueDate())
+                .estimatedHours(taskRequest.getEstimatedHours())
+                .priority(Task.TaskPriority.valueOf(taskRequest.getPriority()))
+                .reporter(user)
+                .title(taskRequest.getTitle())
+                .assignees(assignees)
+                .build();
+
+        taskRepository.save(newTask);
+
+        return taskMapper.toResponse(newTask);
     }
 
-    private void ensureRoleInProjectMember(UUID projectId, UUID userId, ProjectMember.ProjectMemberType... memberTypes) {
-        ProjectMember member = projectMemberRepository.findByUserIdAndProjectId(userId, projectId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("Member not found"));
+    @Override
+    public List<TaskResponse> getTasks(String projectId) {
+        User user = authenticationHelper.getCurrentUser();
+        UUID projectUUID =  UUIDUtils.fromString(projectId, "project");
 
-        boolean hasRole = Arrays.stream(memberTypes)
-                .anyMatch(role -> role == member.getMemberType());
+        // permissionHelper.ensure user is member of project
+        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.values());
 
-        if (!hasRole) {
-            throw new ForbiddenException("You do not have permission to perform this action");
-        }
+        List<Task> tasks = taskRepository.findAllByProjectId(projectUUID);
+
+        return taskMapper.toResponseList(tasks);
     }
 
-    private void checkIsValidWorkspaceRoleChange(ProjectMember.ProjectMemberType currentRole,
-                                                 ProjectMember.ProjectMemberType targetRole,
-                                                 ProjectMember.ProjectMemberType newRole) {
-        // 1️⃣ Only OWNER or ADMIN can change roles
-        if (currentRole == ProjectMember.ProjectMemberType.VIEWER) {
-            throw new ForbiddenException("You are not allowed to change member roles");
-        }
+    @Override
+    public List<TaskResponse> filterTasks(String projectId, TaskFilterRequest filter) {
+        User user = authenticationHelper.getCurrentUser();
+        UUID projectUUID = UUIDUtils.fromString(projectId, "project");
 
-        // 2️⃣ Cannot change role of someone higher than you
-        if (targetRole.isHigherThan(currentRole)) {
-            throw new ForbiddenException("You cannot modify a member with a higher role");
-        }
+        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.values());
 
-        // 5️⃣ Prevent no-op updates
-        if (targetRole == newRole) {
-            throw new BusinessValidationException("memberType", "Role is already assigned");
-        }
+        List<Task> tasks =
+                taskRepository.findByProjectWithFilters(projectUUID, filter);
+
+        return tasks.stream()
+                .map(taskMapper::toResponse)
+                .toList();
     }
 
-    private void ensureOnlyInviteNonMember(UUID projectId, String email) {
-        if(projectMemberRepository.existsByProject_IdAndUser_Email(projectId, email)) {
-            throw new IllegalStateException("User is already a member of this project");
-        }
+    public List<Task> filterTasks(UUID projectId, TaskFilterRequest filter) {
+        return taskRepository.findAll(
+                TaskSpecification.withFilters(projectId, filter)
+        );
     }
+
+
+
+    // Helper method to add assignees later
+//    public TaskResponse addAssignee(UUID taskId, UUID userId, User currentUser) {
+//        Task task = taskRepository.findById(taskId)
+//                .orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+//
+//        User assignee = userRepository.findById(userId)
+//                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+//
+//        // Check if already assigned
+//        if (task.getAssignees().contains(assignee)) {
+//            throw new IllegalStateException("User already assigned to this task");
+//        }
+//
+//        // Add assignee
+//        task.getAssignees().add(assignee);
+//        Task savedTask = taskRepository.save(task);
+//
+//        return taskMapper.toResponse(savedTask);
+//    }
+//
+//    // Helper method to remove assignee
+//    public TaskResponse removeAssignee(UUID taskId, UUID userId, User currentUser) {
+//        Task task = taskRepository.findById(taskId)
+//                .orElseThrow(() -> new ResourceNotFoundException("Task not found"));
+//
+//        User assignee = userRepository.findById(userId)
+//                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+//
+//        // Remove assignee
+//        boolean removed = task.getAssignees().remove(assignee);
+//
+//        if (!removed) {
+//            throw new IllegalStateException("User not assigned to this task");
+//        }
+//
+//        Task savedTask = taskRepository.save(task);
+//
+//        return taskMapper.toResponse(savedTask);
+//    }
 
 }

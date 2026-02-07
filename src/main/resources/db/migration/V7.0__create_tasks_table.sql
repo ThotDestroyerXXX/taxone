@@ -23,7 +23,6 @@ CREATE TABLE tasks (
                     )               NOT NULL,
     due_date        DATE,
     estimated_hours INT,
-    order_index     INT             NOT NULL,
     created_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
     completed_at    TIMESTAMP       NULL,

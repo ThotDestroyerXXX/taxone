@@ -28,7 +28,6 @@ public class TaskResponse {
     private Task.TaskPriority priority;
     private Date dueDate;
     private Integer estimatedHours;
-    private Integer orderIndex;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private LocalDateTime completedAt;

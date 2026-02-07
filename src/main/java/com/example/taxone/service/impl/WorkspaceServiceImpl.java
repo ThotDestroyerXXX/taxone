@@ -9,26 +9,22 @@ import com.example.taxone.dto.response.WorkspaceInvitationResponse;
 import com.example.taxone.dto.response.WorkspaceMemberResponse;
 import com.example.taxone.dto.response.WorkspaceResponse;
 import com.example.taxone.entity.*;
-import com.example.taxone.exception.BusinessValidationException;
-import com.example.taxone.exception.ForbiddenException;
 import com.example.taxone.exception.ResourceNotFoundException;
 import com.example.taxone.mapper.ProjectMapper;
 import com.example.taxone.mapper.WorkspaceInvitationMapper;
 import com.example.taxone.mapper.WorkspaceMapper;
 import com.example.taxone.mapper.WorkspaceMemberMapper;
 import com.example.taxone.repository.*;
-import com.example.taxone.security.CustomUserDetails;
 import com.example.taxone.service.WorkspaceService;
+import com.example.taxone.util.AuthenticationHelper;
 import com.example.taxone.util.DateUtils;
+import com.example.taxone.util.PermissionHelper;
 import com.example.taxone.util.UUIDUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.awt.*;
-import java.util.Arrays;
 import java.util.List;
 import java.util.UUID;
 
@@ -45,12 +41,15 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     private final WorkspaceMemberMapper workspaceMemberMapper;
     private final WorkspaceInvitationMapper workspaceInvitationMapper;
     private final ProjectMapper projectMapper;
+    
+    private final AuthenticationHelper authenticationHelper;
+    private final PermissionHelper permissionHelper;
 
     @Override
     public WorkspaceResponse createWorkspace(WorkspaceRequest workspaceRequest) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
 
-        ensureUniqueSlug(workspaceRequest.getSlug());
+        permissionHelper.ensureUniqueSlug(workspaceRequest.getSlug());
 
         Workspace newWorkspace = Workspace
                 .builder()
@@ -77,7 +76,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public List<WorkspaceResponse> getWorkspaces() {
-        UUID userId = getCurrentUser().getId();
+        UUID userId = authenticationHelper.getCurrentUser().getId();
 
         List<Workspace> workspaces =
                 workspaceRepository.findAllByUserId(userId);
@@ -87,7 +86,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public WorkspaceResponse getWorkspace(String workspaceId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
 
         UUID workspaceUUID = UUIDUtils.fromString(workspaceId, "workspace");
 
@@ -100,7 +99,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public WorkspaceResponse updateWorkspace(String workspaceId, WorkspaceRequest request) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
 
         UUID workspaceUUID = UUIDUtils.fromString(workspaceId, "workspace");
 
@@ -108,8 +107,8 @@ public class WorkspaceServiceImpl implements WorkspaceService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Workspace not found"));
 
-        ensureOwnerOfWorkspace(user, workspace);
-        ensureSlugUniqueForUpdate(request.getSlug(),  workspaceUUID);
+        permissionHelper.ensureOwnerOfWorkspace(user, workspace);
+        permissionHelper.ensureSlugUniqueForUpdate(request.getSlug(),  workspaceUUID);
 
         // Update existing entity (IMPORTANT)
         workspace.setName(request.getName());
@@ -124,14 +123,14 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public void deleteWorkspace(String workspaceId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID workspaceUUID = UUIDUtils.fromString(workspaceId, "workspace");
 
         Workspace workspace = workspaceRepository.findById(workspaceUUID)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Workspace not found"));
 
-        ensureOwnerOfWorkspace(user, workspace);
+        permissionHelper.ensureOwnerOfWorkspace(user, workspace);
 
         workspace.setIsActive(false);
         workspaceRepository.save(workspace);
@@ -139,14 +138,14 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public WorkspaceResponse restoreWorkspace(String workspaceId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID workspaceUUID = UUIDUtils.fromString(workspaceId, "workspace");
 
         Workspace workspace = workspaceRepository.findById(workspaceUUID)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Workspace not found"));
 
-        ensureOwnerOfWorkspace(user, workspace);
+        permissionHelper.ensureOwnerOfWorkspace(user, workspace);
 
         workspace.setIsActive(true);
         workspaceRepository.save(workspace);
@@ -156,14 +155,14 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public List<WorkspaceMemberResponse> getMembers(String workspaceId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID workspaceUUID = UUIDUtils.fromString(workspaceId, "workspace");
 
         Workspace workspace = workspaceRepository.findById(workspaceUUID)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Workspace not found"));
 
-        ensureWorkspaceMember(user.getId(), workspace.getId());
+        permissionHelper.ensureWorkspaceMember(user.getId(), workspace.getId());
 
         List<WorkspaceMember> workspaceMembers = workspaceMemberRepository
                 .findAllByWorkspaceId(workspace.getId());
@@ -174,19 +173,19 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     @Transactional
     public WorkspaceInvitationResponse inviteMember(String workspaceId,
                                                     WorkspaceInvitationRequest invitationRequest) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID workspaceUUID = UUIDUtils.fromString(workspaceId, "workspace");
 
-        // ensure workspace is present
+        // permissionHelper.ensure workspace is present
         Workspace workspace = workspaceRepository.findById(workspaceUUID)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Workspace not found"));
 
-        // ensure only owner or admin can invite
-        ensureRoleInWorkspaceMember(workspaceUUID, user.getId(),
+        // permissionHelper.ensure only owner or admin can invite
+        permissionHelper.ensureRoleInWorkspaceMember(workspaceUUID, user.getId(),
                 WorkspaceMember.MemberType.OWNER, WorkspaceMember.MemberType.ADMIN);
 
-        ensureOnlyInviteNonMember(workspaceUUID, invitationRequest.getEmail());
+        permissionHelper.ensureOnlyInviteNonMember(workspaceUUID, invitationRequest.getEmail());
 
         // change status of other pending status by invited by to expired
         workspaceInvitationRepository.expirePendingInvites(
@@ -211,11 +210,11 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public WorkspaceMemberResponse getMember(String workspaceId, String memberId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID workspaceUUID = UUIDUtils.fromString(workspaceId, "workspace");
         UUID workspaceMemberId = UUIDUtils.fromString(memberId, "memberId");
 
-        ensureWorkspaceMember(user.getId(), workspaceUUID);
+        permissionHelper.ensureWorkspaceMember(user.getId(), workspaceUUID);
 
         // find member by searching for workspace id and member id
         WorkspaceMember member = workspaceMemberRepository.findByIdAndWorkspaceId(workspaceMemberId, workspaceUUID)
@@ -227,7 +226,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public WorkspaceMemberResponse updateMemberRole(String workspaceId, String memberId, WorkspaceMemberRoleRequest memberRoleRequest) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID workspaceUUID = UUIDUtils.fromString(workspaceId, "workspace");
         UUID workspaceMemberId = UUIDUtils.fromString(memberId, "memberId");
 
@@ -245,7 +244,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         WorkspaceMember.MemberType targetRole = member.getMemberType();
         WorkspaceMember.MemberType newRole = WorkspaceMember.MemberType.valueOf(memberRoleRequest.getMemberType());
 
-        checkIsValidWorkspaceRoleChange(currentRole, targetRole, newRole);
+        permissionHelper.checkIsValidWorkspaceRoleChange(currentRole, targetRole, newRole);
 
         // Update role
         member.setMemberType(newRole);
@@ -256,7 +255,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public void deleteMember(String workspaceId, String memberId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID workspaceUUID = UUIDUtils.fromString(workspaceId, "workspace");
         UUID workspaceMemberId = UUIDUtils.fromString(memberId, "memberId");
 
@@ -270,18 +269,18 @@ public class WorkspaceServiceImpl implements WorkspaceService {
             throw new ResourceNotFoundException("Member not found");
         }
 
-        ensureRoleInWorkspaceMember(workspaceUUID, user.getId(), WorkspaceMember.MemberType.OWNER);
+        permissionHelper.ensureRoleInWorkspaceMember(workspaceUUID, user.getId(), WorkspaceMember.MemberType.OWNER);
 
         workspaceMemberRepository.delete(member);
     }
 
     @Override
     public List<WorkspaceInvitationResponse> getPendingInvites(String workspaceId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID workspaceUUID = UUIDUtils.fromString(workspaceId, "workspace");
 
-        // ensure user is member of workspace
-        ensureWorkspaceMember(user.getId(), workspaceUUID);
+        // permissionHelper.ensure user is member of workspace
+        permissionHelper.ensureWorkspaceMember(user.getId(), workspaceUUID);
 
         List<WorkspaceInvitation> invitations = workspaceInvitationRepository.findAllByWorkspaceId(workspaceUUID);
 
@@ -290,11 +289,11 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public void cancelInvite(String workspaceId, String invitationId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID workspaceUUID = UUIDUtils.fromString(workspaceId, "workspace");
         UUID invitationUUID = UUIDUtils.fromString(invitationId, "invitation");
 
-        ensureRoleInWorkspaceMember(workspaceUUID, user.getId(),
+        permissionHelper.ensureRoleInWorkspaceMember(workspaceUUID, user.getId(),
                 WorkspaceMember.MemberType.OWNER, WorkspaceMember.MemberType.ADMIN);
 
         WorkspaceInvitation invite = workspaceInvitationRepository.findByIdAndWorkspaceId(invitationUUID, workspaceUUID)
@@ -307,10 +306,10 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public ProjectResponse createProject(String workspaceId, ProjectRequest projectRequest) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID workspaceUUID = UUIDUtils.fromString(workspaceId, "workspace");
 
-        ensureRoleInWorkspaceMember(workspaceUUID, user.getId(),
+        permissionHelper.ensureRoleInWorkspaceMember(workspaceUUID, user.getId(),
                 WorkspaceMember.MemberType.OWNER, WorkspaceMember.MemberType.ADMIN);
 
         Workspace workspace = workspaceRepository.findById(workspaceUUID)
@@ -347,96 +346,13 @@ public class WorkspaceServiceImpl implements WorkspaceService {
 
     @Override
     public List<ProjectResponse> getProjects(String workspaceId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID workspaceUUID = UUIDUtils.fromString(workspaceId, "workspace");
 
-        ensureWorkspaceMember(user.getId(), workspaceUUID);
+        permissionHelper.ensureWorkspaceMember(user.getId(), workspaceUUID);
 
         List<Project> projects = projectRepository.findVisibleProjects(workspaceUUID, user.getId());
 
         return projectMapper.toResponseList(projects);
-    }
-
-    // helper methods
-    private User getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication != null && authentication.getPrincipal() instanceof CustomUserDetails userDetails) {
-            return userDetails.getUser();
-        }
-
-        throw new IllegalStateException("User not authenticated");
-    }
-
-    private void ensureUniqueSlug(String slug) {
-        if(workspaceRepository.existsBySlug(slug)) {
-            throw new BusinessValidationException("slug", "Slug must be unique");
-        }
-    }
-
-    private void ensureOwnerOfWorkspace(User user, Workspace workspace) {
-        if (!workspace.getOwner().getId().equals(user.getId())) {
-            throw new ForbiddenException("You are not allowed to update this workspace");
-        }
-    }
-
-    private void ensureRoleInWorkspaceMember(UUID workspaceId, UUID userId, WorkspaceMember.MemberType... memberTypes) {
-        WorkspaceMember member = workspaceMemberRepository.findByUserIdAndWorkspaceId(userId, workspaceId)
-                .orElseThrow(() ->
-                        new ResourceNotFoundException("You are not a member of this workspace"));
-
-        boolean hasRole = Arrays.stream(memberTypes)
-                .anyMatch(role -> role == member.getMemberType());
-
-        if (!hasRole) {
-            throw new ForbiddenException("You do not have permission to perform this action");
-        }
-    }
-
-    private void ensureSlugUniqueForUpdate(String slug, UUID workspaceId) {
-        if (workspaceRepository.existsBySlugAndIdNot(slug, workspaceId)) {
-            throw new BusinessValidationException("slug", "Slug must be unique");
-        }
-    }
-
-    private void ensureWorkspaceMember(UUID userId, UUID workspaceId) {
-        if(!workspaceMemberRepository.existsByUserIdAndWorkspaceId(userId, workspaceId)) {
-            throw new ForbiddenException("You are not a member of this workspace");
-        }
-    }
-
-    private void checkIsValidWorkspaceRoleChange(WorkspaceMember.MemberType currentRole,
-                                                 WorkspaceMember.MemberType targetRole,
-                                                 WorkspaceMember.MemberType newRole) {
-        // 1️⃣ Only OWNER or ADMIN can change roles
-        if (currentRole == WorkspaceMember.MemberType.MEMBER || currentRole == WorkspaceMember.MemberType.VIEWER) {
-            throw new ForbiddenException("You are not allowed to change member roles");
-        }
-
-        // 2️⃣ Cannot change role of someone higher than you
-        if (targetRole.isHigherThan(currentRole)) {
-            throw new ForbiddenException("You cannot modify a member with a higher role");
-        }
-
-        // 3️⃣ Cannot assign a role higher than your own
-        if (newRole.isHigherThan(currentRole)) {
-            throw new ForbiddenException("You cannot assign a role higher than your own");
-        }
-
-        // 4️⃣ (Optional but recommended) OWNER role cannot be changed
-        if (targetRole == WorkspaceMember.MemberType.OWNER && currentRole != WorkspaceMember.MemberType.OWNER) {
-            throw new ForbiddenException("Owner role cannot be modified");
-        }
-
-        // 5️⃣ Prevent no-op updates
-        if (targetRole == newRole) {
-            throw new BusinessValidationException("memberType", "Role is already assigned");
-        }
-    }
-
-    private void ensureOnlyInviteNonMember(UUID workspaceId, String email) {
-        if(workspaceMemberRepository.existsByWorkspace_IdAndUser_Email(workspaceId, email)) {
-            throw new IllegalStateException("User is already a member of this workspace");
-        }
     }
 }

@@ -75,9 +75,6 @@ public class Task {
     @Column(name = "estimated_hours", nullable = true)
     private Integer estimatedHours;
 
-    @Column(name = "order_index", nullable = false)
-    private Integer orderIndex;
-
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

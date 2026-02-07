@@ -10,16 +10,14 @@ import com.example.taxone.repository.ProjectInvitationRepository;
 import com.example.taxone.repository.ProjectMemberRepository;
 import com.example.taxone.repository.WorkspaceInvitationRepository;
 import com.example.taxone.repository.WorkspaceMemberRepository;
-import com.example.taxone.security.CustomUserDetails;
 import com.example.taxone.service.InvitationService;
+import com.example.taxone.util.AuthenticationHelper;
+import com.example.taxone.util.PermissionHelper;
 import com.example.taxone.util.UUIDUtils;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -33,12 +31,15 @@ public class InvitationServiceImpl implements InvitationService {
 
     private final ProjectInvitationMapper projectInvitationMapper;
     private final WorkspaceInvitationMapper workspaceInvitationMapper;
+    
+    private final AuthenticationHelper authenticationHelper;
+    private final PermissionHelper permissionHelper;
 
 
     @Override
     @Transactional
     public ProjectInvitationResponse acceptProjectInvite(String projectInvitationId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID projectInvitationUUID = UUIDUtils.fromString(projectInvitationId, "project invitation");
 
         ProjectInvitation existingProjectInvitation = projectInvitationRepository
@@ -46,7 +47,7 @@ public class InvitationServiceImpl implements InvitationService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("invitation not found"));
 
-        ensureIsPendingInvitationStatus(existingProjectInvitation.getStatus());
+        permissionHelper.ensureIsPendingInvitationStatus(existingProjectInvitation.getStatus());
 
         // change all other status to expired
         projectInvitationRepository.updateStatusByEmailAndStatus(
@@ -75,7 +76,7 @@ public class InvitationServiceImpl implements InvitationService {
     @Override
     @Transactional
     public WorkspaceInvitationResponse acceptWorkspaceInvite(String workspaceInvitationId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID workspaceInvitationUUID = UUIDUtils.fromString(workspaceInvitationId, "workspace invitation");
 
         WorkspaceInvitation existingWorkspaceInvitation = workspaceInvitationRepository
@@ -83,7 +84,7 @@ public class InvitationServiceImpl implements InvitationService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("invitation not found"));
 
-        ensureIsPendingInvitationStatus(existingWorkspaceInvitation.getStatus());
+        permissionHelper.ensureIsPendingInvitationStatus(existingWorkspaceInvitation.getStatus());
 
         // change all other status to expired
         workspaceInvitationRepository.updateStatusByEmailAndStatus(
@@ -111,16 +112,16 @@ public class InvitationServiceImpl implements InvitationService {
 
     @Override
     public ProjectInvitationResponse declineProjectInvite(String projectInvitationId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID projectInvitationUUID = UUIDUtils.fromString(projectInvitationId, "project invitation");
 
-        // ensure that the invitation exists
+        // permissionHelper.ensure that the invitation exists
         ProjectInvitation existingProjectInvitation = projectInvitationRepository
                 .findByIdAndEmail(projectInvitationUUID, user.getEmail())
                 .orElseThrow(() ->
                         new ResourceNotFoundException("invitation not found"));
 
-        ensureIsPendingInvitationStatus(existingProjectInvitation.getStatus());
+        permissionHelper.ensureIsPendingInvitationStatus(existingProjectInvitation.getStatus());
 
         existingProjectInvitation.setStatus(InvitationStatus.DECLINED);
         projectInvitationRepository.save(existingProjectInvitation);
@@ -130,7 +131,7 @@ public class InvitationServiceImpl implements InvitationService {
 
     @Override
     public WorkspaceInvitationResponse declineWorkspaceInvite(String workspaceInvitationId) {
-        User user = getCurrentUser();
+        User user = authenticationHelper.getCurrentUser();
         UUID workspaceInvitationUUID = UUIDUtils.fromString(workspaceInvitationId, "workspace invitation");
 
         WorkspaceInvitation existingWorkspaceInvitation = workspaceInvitationRepository
@@ -138,28 +139,11 @@ public class InvitationServiceImpl implements InvitationService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("invitation not found"));
 
-        ensureIsPendingInvitationStatus(existingWorkspaceInvitation.getStatus());
+        permissionHelper.ensureIsPendingInvitationStatus(existingWorkspaceInvitation.getStatus());
         existingWorkspaceInvitation.setStatus(InvitationStatus.DECLINED);
 
         workspaceInvitationRepository.save(existingWorkspaceInvitation);
 
         return workspaceInvitationMapper.toResponse(existingWorkspaceInvitation);
-    }
-
-    // helper methods
-    private User getCurrentUser() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication != null && authentication.getPrincipal() instanceof CustomUserDetails userDetails) {
-            return userDetails.getUser();
-        }
-
-        throw new IllegalStateException("User not authenticated");
-    }
-
-    private void ensureIsPendingInvitationStatus(InvitationStatus status) {
-        if(!status.equals(InvitationStatus.PENDING)) {
-            throw new IllegalStateException("Invitation is not pending");
-        }
     }
 }

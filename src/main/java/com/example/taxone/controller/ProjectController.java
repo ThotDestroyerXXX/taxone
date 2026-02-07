@@ -1,9 +1,6 @@
 package com.example.taxone.controller;
 
-import com.example.taxone.dto.request.ProjectInvitationRequest;
-import com.example.taxone.dto.request.ProjectMemberRoleRequest;
-import com.example.taxone.dto.request.ProjectRequest;
-import com.example.taxone.dto.request.TaskRequest;
+import com.example.taxone.dto.request.*;
 import com.example.taxone.dto.response.ProjectInvitationResponse;
 import com.example.taxone.dto.response.ProjectMemberResponse;
 import com.example.taxone.dto.response.ProjectResponse;
@@ -89,9 +86,27 @@ public class ProjectController {
         return ResponseEntity.noContent().build();
     }
 
-//    @PostMapping("/{projectId}/tasks")
-//    public ResponseEntity<TaskResponse> createTask(@PathVariable String projectId,
-//                                                   @RequestBody TaskRequest taskRequest) {
-//
-//    }
+    @PostMapping("/{projectId}/tasks")
+    public ResponseEntity<TaskResponse> createTask(@PathVariable String projectId,
+                                                   @RequestBody @Valid TaskRequest taskRequest) {
+        TaskResponse response = projectService.createTask(projectId, taskRequest);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{projectId}/tasks")
+    public ResponseEntity<List<TaskResponse>> getTask(@PathVariable String projectId) {
+        List<TaskResponse> responses = projectService.getTasks(projectId);
+        return ResponseEntity.ok(responses);
+    }
+
+    @GetMapping("/projects/{projectId}/tasks/filter")
+    public ResponseEntity<List<TaskResponse>> filterTasks(
+            @PathVariable String projectId,
+            @ModelAttribute TaskFilterRequest filter
+    ) {
+        return ResponseEntity.ok(
+                projectService.filterTasks(projectId, filter)
+        );
+    }
+
 }
