@@ -15,14 +15,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "workspace_invitations",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uq_workspace_invited_by_status", columnNames = {
-                        "workspace_id",
-                        "invited_by",
-                        "status"
-                })
-        })
+@Table(name = "workspace_invitations")
 public class WorkspaceInvitation {
 
     @Id

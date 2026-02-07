@@ -19,4 +19,5 @@ public interface ProjectService {
     ProjectInvitationResponse inviteMember(String projectId, ProjectInvitationRequest invitationRequest);
     ProjectMemberResponse updateMemberRole(String projectId, String memberId, ProjectMemberRoleRequest roleRequest);
     void deleteMember(String projectId, String memberId);
+    ProjectInvitationResponse cancelProjectInvite(String projectId, String invitationId);
 }

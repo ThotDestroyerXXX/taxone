@@ -21,7 +21,5 @@ CREATE TABLE workspace_invitations (
     responded_at        TIMESTAMP       NULL,
 
     FOREIGN KEY (workspace_id) REFERENCES workspaces(id),
-    FOREIGN KEY (invited_by) REFERENCES users(id),
-
-    UNIQUE (workspace_id, invited_by, status)
+    FOREIGN KEY (invited_by) REFERENCES users(id)
 )

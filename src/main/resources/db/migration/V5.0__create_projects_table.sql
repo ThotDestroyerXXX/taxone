@@ -27,6 +27,6 @@ CREATE TABLE projects (
     FOREIGN KEY (workspace_id) REFERENCES workspaces(id),
     FOREIGN KEY (owner_id) REFERENCES users(id),
 
-    UNIQUE (workspace_id, project_key)
+    CONSTRAINT uq_workspace_key UNIQUE (workspace_id, project_key)
 
 )

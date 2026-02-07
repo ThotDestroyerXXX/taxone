@@ -28,5 +28,20 @@ public interface ProjectInvitationRepository extends JpaRepository<ProjectInvita
             @Param("newStatus") InvitationStatus newStatus
     );
 
+    @Modifying
+    @Query("""
+    UPDATE ProjectInvitation pi
+    SET pi.status = :newStatus
+    WHERE pi.project.id = :projectId
+    AND pi.email = :email
+    AND pi.status = :oldStatus
+    """)
+    void expirePendingInvites(
+            @Param("projectId") UUID projectId,
+            @Param("email") String email,
+            @Param("oldStatus") InvitationStatus oldStatus,
+            @Param("newStatus") InvitationStatus newStatus
+    );
+
     List<ProjectInvitation> findAllByProjectIdAndEmailAndStatusIn(UUID projectId, String email, List<InvitationStatus> status);
 }

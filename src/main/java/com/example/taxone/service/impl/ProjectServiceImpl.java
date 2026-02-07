@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.awt.*;
 import java.util.Arrays;
@@ -156,6 +157,7 @@ public class ProjectServiceImpl implements ProjectService {
     }
 
     @Override
+    @Transactional
     public ProjectInvitationResponse inviteMember(String projectId, ProjectInvitationRequest invitationRequest) {
         User user = getCurrentUser();
         UUID projectUUID =  UUIDUtils.fromString(projectId, "project");
@@ -169,6 +171,14 @@ public class ProjectServiceImpl implements ProjectService {
 
         // ensure no duplicate invite
         ensureOnlyInviteNonMember(projectUUID, invitationRequest.getEmail());
+
+        // change status of other pending status by invited by to expired
+        projectInvitationRepository.expirePendingInvites(
+                projectUUID,
+                invitationRequest.getEmail(),
+                InvitationStatus.PENDING,
+                InvitationStatus.EXPIRED
+        );
 
         ProjectInvitation newInvite = ProjectInvitation
                 .builder()
@@ -226,6 +236,31 @@ public class ProjectServiceImpl implements ProjectService {
         ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.PROJECT_LEAD);
 
         projectMemberRepository.delete(member);
+    }
+
+    @Override
+    public ProjectInvitationResponse cancelProjectInvite(String projectId, String invitationId) {
+        User user = getCurrentUser();
+        UUID projectUUID = UUIDUtils.fromString(projectId, "project");
+        UUID  invitationUUID = UUIDUtils.fromString(invitationId, "invitation");
+
+        Project project = projectRepository.findById(projectUUID)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Project not found"));
+
+        ensureRoleInProjectMember(projectUUID, user.getId(),
+                ProjectMember.ProjectMemberType.PROJECT_LEAD, ProjectMember.ProjectMemberType.CONTRIBUTOR);
+
+        // ensure that the invitation exists
+        ProjectInvitation existingProjectInvitation = projectInvitationRepository
+                .findById(invitationUUID)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("invitation not found"));
+
+        existingProjectInvitation.setStatus(InvitationStatus.CANCELLED);
+        projectInvitationRepository.save(existingProjectInvitation);
+
+        return projectInvitationMapper.toResponse(existingProjectInvitation);
     }
 
     // helper methods

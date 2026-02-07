@@ -76,6 +76,13 @@ public class ProjectController {
         return ResponseEntity.ok(response);
     }
 
+    @PatchMapping("/{projectId}/invitations/{invitationId}")
+    public ResponseEntity<ProjectInvitationResponse> cancelInvitation(@PathVariable String projectId,
+                                                                      @PathVariable String invitationId) {
+        ProjectInvitationResponse response = projectService.cancelProjectInvite(projectId, invitationId);
+        return ResponseEntity.ok(response);
+    }
+
     @DeleteMapping("/{projectId}/members/{memberId}")
     public ResponseEntity<Void> deleteMember(@PathVariable String projectId, @PathVariable String memberId) {
         projectService.deleteMember(projectId, memberId);

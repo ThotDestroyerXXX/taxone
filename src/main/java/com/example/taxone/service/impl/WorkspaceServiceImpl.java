@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.awt.*;
 import java.util.Arrays;
@@ -170,6 +171,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     }
 
     @Override
+    @Transactional
     public WorkspaceInvitationResponse inviteMember(String workspaceId,
                                                     WorkspaceInvitationRequest invitationRequest) {
         User user = getCurrentUser();
@@ -185,6 +187,14 @@ public class WorkspaceServiceImpl implements WorkspaceService {
                 WorkspaceMember.MemberType.OWNER, WorkspaceMember.MemberType.ADMIN);
 
         ensureOnlyInviteNonMember(workspaceUUID, invitationRequest.getEmail());
+
+        // change status of other pending status by invited by to expired
+        workspaceInvitationRepository.expirePendingInvites(
+                workspaceUUID,
+                invitationRequest.getEmail(),
+                InvitationStatus.PENDING,
+                InvitationStatus.EXPIRED
+        );
 
         // invite to member
         WorkspaceInvitation newInvite = WorkspaceInvitation

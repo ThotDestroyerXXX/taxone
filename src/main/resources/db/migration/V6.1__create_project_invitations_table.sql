@@ -20,7 +20,5 @@ CREATE TABLE project_invitations (
     responded_at        TIMESTAMP       NULL,
 
     FOREIGN KEY (project_id) REFERENCES projects(id),
-    FOREIGN KEY (invited_by) REFERENCES users(id),
-
-    UNIQUE (project_id, invited_by, status)
+    FOREIGN KEY (invited_by) REFERENCES users(id)
 )

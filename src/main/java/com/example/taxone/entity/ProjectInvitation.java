@@ -15,14 +15,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "project_invitations",
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uq_project_invited_by_status", columnNames = {
-                        "project_id",
-                        "invited_by",
-                        "status"
-                })
-        })
+@Table(name = "project_invitations")
 public class ProjectInvitation {
 
     @Id
