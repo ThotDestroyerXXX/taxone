@@ -78,9 +78,4 @@ public class TaskController {
         List<TaskResponse> responses = taskService.createdByMe();
         return  ResponseEntity.ok(responses);
     }
-
-    @GetMapping("/overdue")
-    public ResponseEntity<List<TaskResponse>> getOverdueTasks() {
-
-    }
 }
