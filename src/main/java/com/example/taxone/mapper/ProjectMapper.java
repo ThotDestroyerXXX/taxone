@@ -1,20 +1,13 @@
 package com.example.taxone.mapper;
 
 import com.example.taxone.dto.response.ProjectResponse;
-import com.example.taxone.dto.response.WorkspaceMemberResponse;
 import com.example.taxone.entity.Project;
-import com.example.taxone.entity.WorkspaceMember;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.mapstruct.Mapper;
-import org.mapstruct.Mapping;
 
 import java.util.List;
 
 @Mapper(componentModel = "spring", uses =  {UserMapper.class})
 public interface ProjectMapper {
-    ObjectMapper mapper = new ObjectMapper();
-
-    @Mapping(source = "owner", target = "owner")
     ProjectResponse toResponse(Project project);
 
     Project toEntity(ProjectResponse projectResponse);

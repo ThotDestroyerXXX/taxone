@@ -1,10 +1,7 @@
 package com.example.taxone.controller;
 
 
-import com.example.taxone.dto.request.TaskAssigneeRequest;
-import com.example.taxone.dto.request.TaskChangeStatusRequest;
-import com.example.taxone.dto.request.TaskRequest;
-import com.example.taxone.dto.request.TaskUpdateRequest;
+import com.example.taxone.dto.request.*;
 import com.example.taxone.dto.response.TaskResponse;
 import com.example.taxone.service.TaskService;
 import jakarta.validation.Valid;
@@ -77,5 +74,21 @@ public class TaskController {
     public ResponseEntity<List<TaskResponse>>  createdByMe() {
         List<TaskResponse> responses = taskService.createdByMe();
         return  ResponseEntity.ok(responses);
+    }
+
+    @PostMapping("/{taskId}/labels")
+    public ResponseEntity<TaskResponse> addLabelToTask(
+            @PathVariable String taskId,
+            @RequestBody @Valid LabelAssignmentRequest labelAssignmentRequest) {
+        TaskResponse response =  taskService.addLabelToTask(taskId, labelAssignmentRequest);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/{taskId}/labels")
+    public ResponseEntity<TaskResponse> deleteLabelFromTask(
+            @PathVariable String taskId,
+            @RequestBody @Valid LabelAssignmentRequest labelAssignmentRequest) {
+        TaskResponse response = taskService.deleteLabelFromTask(taskId, labelAssignmentRequest);
+        return ResponseEntity.ok(response);
     }
 }

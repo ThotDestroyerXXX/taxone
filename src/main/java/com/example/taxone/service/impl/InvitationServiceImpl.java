@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Service
@@ -57,6 +58,7 @@ public class InvitationServiceImpl implements InvitationService {
         );
 
         existingProjectInvitation.setStatus(InvitationStatus.ACCEPTED);
+        existingProjectInvitation.setRespondedAt(LocalDateTime.now());
 
         // add user to project member
         ProjectMember newMember = ProjectMember
@@ -94,6 +96,7 @@ public class InvitationServiceImpl implements InvitationService {
         );
 
         existingWorkspaceInvitation.setStatus(InvitationStatus.ACCEPTED);
+        existingWorkspaceInvitation.setRespondedAt(LocalDateTime.now());
 
         // add user to project member
         WorkspaceMember newMember = WorkspaceMember

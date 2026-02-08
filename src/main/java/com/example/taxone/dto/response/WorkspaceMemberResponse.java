@@ -17,6 +17,7 @@ import java.util.UUID;
 public class WorkspaceMemberResponse {
     private UUID id;
     private UserResponse user;
+    private UserResponse invitedBy;
     private WorkspaceMember.MemberType memberType;
     private LocalDateTime joinedAt;
 }

@@ -8,6 +8,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
@@ -17,5 +18,7 @@ import java.util.UUID;
 public class ProjectMemberResponse {
     private UUID id;
     private UserResponse user;
+    private UserResponse addedBy;
     private ProjectMember.ProjectMemberType memberType;
+    private LocalDateTime addedAt;
 }

@@ -1,5 +1,6 @@
 package com.example.taxone.service;
 
+import com.example.taxone.dto.request.LabelAssignmentRequest;
 import com.example.taxone.dto.request.TaskAssigneeRequest;
 import com.example.taxone.dto.request.TaskChangeStatusRequest;
 import com.example.taxone.dto.request.TaskUpdateRequest;
@@ -17,4 +18,6 @@ public interface TaskService {
     TaskResponse duplicateTask(String taskId);
     List<TaskResponse> assignedToMe();
     List<TaskResponse> createdByMe();
+    TaskResponse addLabelToTask(String taskId, LabelAssignmentRequest labelAssignmentRequest);
+    TaskResponse  deleteLabelFromTask(String taskId, LabelAssignmentRequest labelAssignmentRequest);
 }

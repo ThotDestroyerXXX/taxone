@@ -23,6 +23,7 @@ public class PermissionHelper {
     private final UserRepository userRepository;
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
+    private final LabelRepository labelRepository;
 
     public void ensureRoleInProject(UUID projectId, UUID userId, ProjectMember.ProjectMemberType... memberTypes) {
         ProjectMember member = projectMemberRepository.findByUserIdAndProjectId(userId, projectId)
@@ -143,6 +144,20 @@ public class PermissionHelper {
             }
 
             return assignees;
+        }
+        return List.of();
+    }
+
+    public List<Label> ensureAllLabelExists(List<UUID> labelIds) {
+        if (labelIds != null && !labelIds.isEmpty()) {
+            List<Label> labels = labelRepository.findAllById(labelIds);
+
+            // Validate all users exist
+            if (labels.size() != labelIds.size()) {
+                throw new ResourceNotFoundException("One or more assignees not found");
+            }
+
+            return labels;
         }
         return List.of();
     }

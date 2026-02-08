@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.UUID;
 
 @Data
@@ -20,7 +22,9 @@ public class ProjectResponse {
     private String status;
     private String priority;
     private String color;
-    private String startDate;
-    private String endDate;
+    private Date startDate;
+    private Date endDate;
     private Boolean isPublic;
+    private LocalDateTime createdAt;
+    private LocalDateTime updatedAt;
 }

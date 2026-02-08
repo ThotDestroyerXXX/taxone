@@ -20,6 +20,7 @@ public class TaskResponse {
     private UUID id;
     private UserResponse reporter;
     private List<UserResponse> assignees;
+    private List<LabelResponse> labels;
     private TaskResponse parentTask;
     private String title;
     private String description;

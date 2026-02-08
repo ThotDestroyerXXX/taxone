@@ -9,4 +9,5 @@ import java.util.UUID;
 
 @Repository
 public interface TaskLabelRepository extends JpaRepository<TaskLabel, UUID> {
+    void deleteAllByLabelId(UUID labelUUID);
 }

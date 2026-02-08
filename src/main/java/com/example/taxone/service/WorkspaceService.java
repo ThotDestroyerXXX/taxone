@@ -1,13 +1,7 @@
 package com.example.taxone.service;
 
-import com.example.taxone.dto.request.ProjectRequest;
-import com.example.taxone.dto.request.WorkspaceInvitationRequest;
-import com.example.taxone.dto.request.WorkspaceMemberRoleRequest;
-import com.example.taxone.dto.request.WorkspaceRequest;
-import com.example.taxone.dto.response.ProjectResponse;
-import com.example.taxone.dto.response.WorkspaceInvitationResponse;
-import com.example.taxone.dto.response.WorkspaceMemberResponse;
-import com.example.taxone.dto.response.WorkspaceResponse;
+import com.example.taxone.dto.request.*;
+import com.example.taxone.dto.response.*;
 import org.springframework.web.bind.annotation.PathVariable;
 
 import java.util.List;
@@ -29,4 +23,6 @@ public interface WorkspaceService {
     void cancelInvite(String workspaceId, String invitationId);
     ProjectResponse createProject(String workspaceId, ProjectRequest projectRequest);
     List<ProjectResponse> getProjects(String workspaceId);
+    LabelResponse createLabel(String workspaceId, LabelRequest labelRequest);
+    List<LabelResponse> getLabels(String workspaceId);
 }

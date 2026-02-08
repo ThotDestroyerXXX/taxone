@@ -1,14 +1,8 @@
 package com.example.taxone.controller;
 
 
-import com.example.taxone.dto.request.ProjectRequest;
-import com.example.taxone.dto.request.WorkspaceInvitationRequest;
-import com.example.taxone.dto.request.WorkspaceMemberRoleRequest;
-import com.example.taxone.dto.request.WorkspaceRequest;
-import com.example.taxone.dto.response.ProjectResponse;
-import com.example.taxone.dto.response.WorkspaceInvitationResponse;
-import com.example.taxone.dto.response.WorkspaceMemberResponse;
-import com.example.taxone.dto.response.WorkspaceResponse;
+import com.example.taxone.dto.request.*;
+import com.example.taxone.dto.response.*;
 import com.example.taxone.entity.WorkspaceInvitation;
 import com.example.taxone.service.WorkspaceService;
 import jakarta.validation.Valid;
@@ -128,5 +122,17 @@ public class WorkspaceController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/{workspaceId}/labels")
+    public ResponseEntity<LabelResponse> createLabel(@PathVariable String workspaceId,
+                                                     @RequestBody @Valid LabelRequest labelRequest) {
+        LabelResponse response = workspaceService.createLabel(workspaceId, labelRequest);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{workspaceId}/labels")
+    public ResponseEntity<List<LabelResponse>> getLabels(@PathVariable String workspaceId) {
+        List<LabelResponse> response = workspaceService.getLabels(workspaceId);
+        return ResponseEntity.ok(response);
+    }
 
 }

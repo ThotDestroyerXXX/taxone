@@ -1,19 +1,11 @@
 package com.example.taxone.service.impl;
 
-import com.example.taxone.dto.request.ProjectRequest;
-import com.example.taxone.dto.request.WorkspaceInvitationRequest;
-import com.example.taxone.dto.request.WorkspaceMemberRoleRequest;
-import com.example.taxone.dto.request.WorkspaceRequest;
-import com.example.taxone.dto.response.ProjectResponse;
-import com.example.taxone.dto.response.WorkspaceInvitationResponse;
-import com.example.taxone.dto.response.WorkspaceMemberResponse;
-import com.example.taxone.dto.response.WorkspaceResponse;
+import com.example.taxone.dto.request.*;
+import com.example.taxone.dto.response.*;
 import com.example.taxone.entity.*;
+import com.example.taxone.entity.Label;
 import com.example.taxone.exception.ResourceNotFoundException;
-import com.example.taxone.mapper.ProjectMapper;
-import com.example.taxone.mapper.WorkspaceInvitationMapper;
-import com.example.taxone.mapper.WorkspaceMapper;
-import com.example.taxone.mapper.WorkspaceMemberMapper;
+import com.example.taxone.mapper.*;
 import com.example.taxone.repository.*;
 import com.example.taxone.service.WorkspaceService;
 import com.example.taxone.util.AuthenticationHelper;
@@ -37,6 +29,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     private final WorkspaceInvitationRepository  workspaceInvitationRepository;
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
+    private final LabelRepository labelRepository;
     private final WorkspaceMapper workspaceMapper;
     private final WorkspaceMemberMapper workspaceMemberMapper;
     private final WorkspaceInvitationMapper workspaceInvitationMapper;
@@ -44,6 +37,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     
     private final AuthenticationHelper authenticationHelper;
     private final PermissionHelper permissionHelper;
+    private final LabelMapper labelMapper;
 
     @Override
     public WorkspaceResponse createWorkspace(WorkspaceRequest workspaceRequest) {
@@ -354,5 +348,42 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         List<Project> projects = projectRepository.findVisibleProjects(workspaceUUID, user.getId());
 
         return projectMapper.toResponseList(projects);
+    }
+
+    @Override
+    public LabelResponse createLabel(String workspaceId, LabelRequest labelRequest) {
+        User user = authenticationHelper.getCurrentUser();
+        UUID workspaceUUID = UUIDUtils.fromString(workspaceId, "workspace");
+
+        permissionHelper.ensureRoleInWorkspaceMember(workspaceUUID, user.getId(),
+                WorkspaceMember.MemberType.OWNER, WorkspaceMember.MemberType.ADMIN);
+
+        Workspace workspace = workspaceRepository.findById(workspaceUUID)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Workspace not found"));
+
+        Label label = Label
+                .builder()
+                .color(labelRequest.getColor())
+                .workspace(workspace)
+                .name(labelRequest.getName())
+                .description(labelRequest.getDescription())
+                .build();
+
+        labelRepository.save(label);
+
+        return labelMapper.toResponse(label);
+    }
+
+    @Override
+    public List<LabelResponse> getLabels(String workspaceId) {
+        User user = authenticationHelper.getCurrentUser();
+        UUID workspaceUUID = UUIDUtils.fromString(workspaceId, "workspace");
+
+        permissionHelper.ensureWorkspaceMember(user.getId(), workspaceUUID);
+
+        List<Label> labels = labelRepository.findAllByWorkspaceId(workspaceUUID);
+
+        return labelMapper.toResponseList(labels);
     }
 }

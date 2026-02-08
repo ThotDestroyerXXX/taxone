@@ -58,7 +58,6 @@ public class TaskSeeder {
                         .project(project)
                         .dueDate(faker.date().future(45, TimeUnit.DAYS))
                         .estimatedHours(300)
-                        .orderIndex(i + 1)
                         .priority(Task.TaskPriority.values()[random.nextInt(Task.TaskPriority.values().length)])
                         .reporter(qualified.get(0).getUser())
                         .title(faker.lorem().sentence(4))
