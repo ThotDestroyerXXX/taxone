@@ -175,9 +175,9 @@ public class WorkspaceServiceImpl implements WorkspaceService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Workspace not found"));
 
-        // permissionHelper.ensure only owner or admin can invite
-        permissionHelper.ensureRoleInWorkspaceMember(workspaceUUID, user.getId(),
-                WorkspaceMember.MemberType.OWNER, WorkspaceMember.MemberType.ADMIN);
+        // permissionHelper.ensure only users with MEMBER_INVITE permission can invite
+        permissionHelper.ensureWorkspacePermission(workspaceUUID, user.getId(),
+                WorkspacePermission.MEMBER_INVITE);
 
         permissionHelper.ensureOnlyInviteNonMember(workspaceUUID, invitationRequest.getEmail());
 

@@ -9,7 +9,6 @@ import com.example.taxone.entity.*;
 import com.example.taxone.exception.ResourceNotFoundException;
 import com.example.taxone.mapper.TaskMapper;
 import com.example.taxone.repository.ProjectRepository;
-import com.example.taxone.repository.TaskLabelRepository;
 import com.example.taxone.repository.TaskRepository;
 import com.example.taxone.service.TaskService;
 import com.example.taxone.util.AuthenticationHelper;
@@ -26,7 +25,6 @@ import java.util.UUID;
 public class TaskServiceImpl implements TaskService {
     private final TaskRepository taskRepository;
     private final ProjectRepository projectRepository;
-    private final TaskLabelRepository taskLabelRepository;
 
     private final TaskMapper taskMapper;
 
@@ -36,7 +34,14 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public TaskResponse getTask(String taskId) {
         User user = authenticationHelper.getCurrentUser();
-        Task task = getTaskWithPermission(taskId, user.getId(), ProjectMember.ProjectMemberType.values());
+        UUID taskUUID = UUIDUtils.fromString(taskId, "task");
+
+        Task task = taskRepository.findById(taskUUID)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Task with id: " + taskUUID + " not found"));
+
+        permissionHelper.ensureProjectPermission(task.getProject().getId(), user.getId(),
+                ProjectPermission.TASK_VIEW);
 
         return taskMapper.toResponse(task);
     }
@@ -44,7 +49,14 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public TaskResponse updateTask(String taskId, TaskUpdateRequest taskUpdateRequest) {
         User user = authenticationHelper.getCurrentUser();
-        Task task = getTaskWithPermission(taskId, user.getId(), ProjectMember.ProjectMemberType.PROJECT_LEAD);
+        UUID taskUUID = UUIDUtils.fromString(taskId, "task");
+
+        Task task = taskRepository.findById(taskUUID)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Task with id: " + taskUUID + " not found"));
+
+        permissionHelper.ensureProjectPermission(task.getProject().getId(), user.getId(),
+                ProjectPermission.TASK_UPDATE);
 
         task.setDescription(taskUpdateRequest.getDescription());
         task.setDueDate(taskUpdateRequest.getDueDate());
@@ -60,7 +72,14 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public void deleteTask(String taskId) {
         User user = authenticationHelper.getCurrentUser();
-        Task task = getTaskWithPermission(taskId, user.getId(), ProjectMember.ProjectMemberType.PROJECT_LEAD);
+        UUID taskUUID = UUIDUtils.fromString(taskId, "task");
+
+        Task task = taskRepository.findById(taskUUID)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Task with id: " + taskUUID + " not found"));
+
+        permissionHelper.ensureProjectPermission(task.getProject().getId(), user.getId(),
+                ProjectPermission.TASK_DELETE);
 
         taskRepository.delete(task);
     }
@@ -68,7 +87,14 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public TaskResponse changeTaskStatus(String taskId, TaskChangeStatusRequest taskChangeStatusRequest) {
         User user = authenticationHelper.getCurrentUser();
-        Task task = getTaskWithPermission(taskId, user.getId(), ProjectMember.ProjectMemberType.PROJECT_LEAD);
+        UUID taskUUID = UUIDUtils.fromString(taskId, "task");
+
+        Task task = taskRepository.findById(taskUUID)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Task with id: " + taskUUID + " not found"));
+
+        permissionHelper.ensureProjectPermission(task.getProject().getId(), user.getId(),
+                ProjectPermission.TASK_UPDATE);
 
         task.setStatus(Task.TaskStatus.valueOf(taskChangeStatusRequest.getStatus()));
         taskRepository.save(task);
@@ -89,8 +115,14 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public TaskResponse duplicateTask(String taskId) {
         User user = authenticationHelper.getCurrentUser();
-        Task task = getTaskWithPermission(taskId, user.getId(),
-                ProjectMember.ProjectMemberType.PROJECT_LEAD, ProjectMember.ProjectMemberType.CONTRIBUTOR);
+        UUID taskUUID = UUIDUtils.fromString(taskId, "task");
+
+        Task task = taskRepository.findById(taskUUID)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Task with id: " + taskUUID + " not found"));
+
+        permissionHelper.ensureProjectPermission(task.getProject().getId(), user.getId(),
+                ProjectPermission.TASK_CREATE);
 
         Project project = projectRepository.findById(task.getProject().getId())
                 .orElseThrow(() ->
@@ -136,8 +168,14 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public TaskResponse addLabelToTask(String taskId, LabelAssignmentRequest labelAssignmentRequest) {
         User user = authenticationHelper.getCurrentUser();
-        Task task = getTaskWithPermission(taskId, user.getId(),
-                ProjectMember.ProjectMemberType.PROJECT_LEAD, ProjectMember.ProjectMemberType.CONTRIBUTOR);
+        UUID taskUUID = UUIDUtils.fromString(taskId, "task");
+
+        Task task = taskRepository.findById(taskUUID)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Task with id: " + taskUUID + " not found"));
+
+        permissionHelper.ensureProjectPermission(task.getProject().getId(), user.getId(),
+                ProjectPermission.TASK_UPDATE);
 
         List<Label> labels = permissionHelper.ensureAllLabelExists(labelAssignmentRequest.getLabelIds());
 
@@ -170,8 +208,14 @@ public class TaskServiceImpl implements TaskService {
     @Override
     public TaskResponse deleteLabelFromTask(String taskId, LabelAssignmentRequest labelAssignmentRequest) {
         User user = authenticationHelper.getCurrentUser();
-        Task task = getTaskWithPermission(taskId, user.getId(),
-                ProjectMember.ProjectMemberType.CONTRIBUTOR, ProjectMember.ProjectMemberType.PROJECT_LEAD);
+        UUID taskUUID = UUIDUtils.fromString(taskId, "task");
+
+        Task task = taskRepository.findById(taskUUID)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Task with id: " + taskUUID + " not found"));
+
+        permissionHelper.ensureProjectPermission(task.getProject().getId(), user.getId(),
+                ProjectPermission.TASK_UPDATE);
 
         List<Label> labels = permissionHelper.ensureAllLabelExists(labelAssignmentRequest.getLabelIds());
 
@@ -203,10 +247,10 @@ public class TaskServiceImpl implements TaskService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Task with id: " + taskUUID + " not found"));
 
-        permissionHelper.ensureRoleInProjectMember(
+        permissionHelper.ensureProjectPermission(
                 task.getProject().getId(),
                 user.getId(),
-                ProjectMember.ProjectMemberType.PROJECT_LEAD
+                ProjectPermission.TASK_ASSIGN
         );
 
         List<User> assignees =
@@ -219,19 +263,6 @@ public class TaskServiceImpl implements TaskService {
 
         taskRepository.save(task);
         return taskMapper.toResponse(task);
-    }
-
-    // helper method
-    private Task getTaskWithPermission(String taskId, UUID userId, ProjectMember.ProjectMemberType... memberTypes) {
-        UUID taskUUID = UUIDUtils.fromString(taskId, "task");
-
-        Task task = taskRepository.findById(taskUUID)
-                .orElseThrow(() ->
-                        new  ResourceNotFoundException("Task with id: " + taskUUID + " not found"));
-
-        permissionHelper.ensureRoleInProjectMember(task.getProject().getId(), userId, memberTypes);
-
-        return task;
     }
 
 }

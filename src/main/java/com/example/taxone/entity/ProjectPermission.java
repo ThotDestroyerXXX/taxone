@@ -1,0 +1,30 @@
+package com.example.taxone.entity;
+
+public enum ProjectPermission {
+    PROJECT_VIEW,
+    PROJECT_UPDATE,
+    PROJECT_CREATE,
+    PROJECT_DELETE,
+    PROJECT_ARCHIVE,
+    PROJECT_RESTORE,
+
+    MEMBER_VIEW,
+    MEMBER_INVITE,
+    MEMBER_REMOVE,
+    MEMBER_UPDATE,
+
+    TASK_CREATE,
+    TASK_VIEW,
+    TASK_UPDATE,
+    TASK_DELETE,
+    TASK_ASSIGN,
+    TASK_UNASSIGN,
+
+    LABEL_CREATE,
+    LABEL_VIEW,
+    LABEL_DELETE,
+    LABEL_UPDATE,
+
+    INVITATION_VIEW,
+    INVITATION_CANCEL
+}

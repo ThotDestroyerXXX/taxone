@@ -1,0 +1,21 @@
+package com.example.taxone.entity;
+
+public enum WorkspacePermission {
+    WORKSPACE_VIEW,
+    WORKSPACE_DELETE,
+    WORKSPACE_UPDATE,
+    WORKSPACE_CREATE,
+    WORKSPACE_ARCHIVE,
+    WORKSPACE_RESTORE,
+
+    MEMBER_VIEW,
+    MEMBER_INVITE,
+    MEMBER_DELETE,
+    MEMBER_UPDATE,
+
+    PROJECT_CREATE,
+    PROJECT_VIEW,
+
+    INVITATION_VIEW,
+    INVITATION_CANCEL
+}

@@ -25,6 +25,34 @@ public class PermissionHelper {
     private final ProjectRepository projectRepository;
     private final LabelRepository labelRepository;
 
+    // Permission-based checks for projects
+    public void ensureProjectPermission(UUID projectId, UUID userId, ProjectPermission... permissions) {
+        ProjectMember member = projectMemberRepository.findByUserIdAndProjectId(userId, projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Member not found in project"));
+
+        boolean hasPermission = Arrays.stream(permissions)
+                .anyMatch(permission -> member.getMemberType().has(permission));
+
+        if (!hasPermission) {
+            throw new ForbiddenException("You do not have permission to perform this action");
+        }
+    }
+
+    // Permission-based checks for workspaces
+    public void ensureWorkspacePermission(UUID workspaceId, UUID userId, WorkspacePermission... permissions) {
+        WorkspaceMember member = workspaceMemberRepository.findByUserIdAndWorkspaceId(userId, workspaceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Member not found in workspace"));
+
+        boolean hasPermission = Arrays.stream(permissions)
+                .anyMatch(permission -> member.getMemberType().has(permission));
+
+        if (!hasPermission) {
+            throw new ForbiddenException("You do not have permission to perform this action");
+        }
+    }
+
+    // Legacy methods - kept for backward compatibility
+    @Deprecated
     public void ensureRoleInProject(UUID projectId, UUID userId, ProjectMember.ProjectMemberType... memberTypes) {
         ProjectMember member = projectMemberRepository.findByUserIdAndProjectId(userId, projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Member not found in project"));
@@ -37,6 +65,7 @@ public class PermissionHelper {
         }
     }
 
+    @Deprecated
     public void ensureRoleInWorkspace(UUID workspaceId, UUID userId, WorkspaceMember.MemberType... memberTypes) {
         WorkspaceMember member = workspaceMemberRepository.findByUserIdAndWorkspaceId(userId, workspaceId)
                 .orElseThrow(() -> new ResourceNotFoundException("Member not found in workspace"));
@@ -56,9 +85,26 @@ public class PermissionHelper {
     }
 
     public void ensureOwnerOfWorkspace(User user, Workspace workspace) {
-        if (!workspace.getOwner().getId().equals(user.getId())) {
-            throw new ForbiddenException("You are not allowed to update this workspace");
+        // Check if user has WORKSPACE_DELETE and WORKSPACE_RESTORE permission (only OWNER has all permissions)
+        WorkspaceMember member = workspaceMemberRepository.findByUserIdAndWorkspaceId(user.getId(), workspace.getId())
+                .orElseThrow(() -> new ForbiddenException("You are not a member of this workspace"));
+
+        if (!member.getMemberType().has(WorkspacePermission.WORKSPACE_DELETE)
+            || !member.getMemberType().has(WorkspacePermission.WORKSPACE_RESTORE)) {
+            throw new ForbiddenException("You are not allowed to perform this action");
         }
+    }
+
+    // Helper method to get workspace member
+    public WorkspaceMember getWorkspaceMember(UUID userId, UUID workspaceId) {
+        return workspaceMemberRepository.findByUserIdAndWorkspaceId(userId, workspaceId)
+                .orElseThrow(() -> new ResourceNotFoundException("Member not found in workspace"));
+    }
+
+    // Helper method to get project member
+    public ProjectMember getProjectMember(UUID userId, UUID projectId) {
+        return projectMemberRepository.findByUserIdAndProjectId(userId, projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Member not found in project"));
     }
 
     public void ensureRoleInWorkspaceMember(UUID workspaceId, UUID userId, WorkspaceMember.MemberType... memberTypes) {
@@ -115,12 +161,37 @@ public class PermissionHelper {
         }
     }
 
+    public void checkIsValidProjectRoleChange(ProjectMember.ProjectMemberType currentRole,
+                                               ProjectMember.ProjectMemberType targetRole,
+                                               ProjectMember.ProjectMemberType newRole) {
+        // 1️⃣ Only users with MEMBER_UPDATE permission can change roles
+        if (!currentRole.has(ProjectPermission.MEMBER_UPDATE)) {
+            throw new ForbiddenException("You are not allowed to change member roles");
+        }
+
+        // 2️⃣ Cannot change role of someone higher than you
+        if (targetRole.isHigherThan(currentRole)) {
+            throw new ForbiddenException("You cannot modify a member with a higher role");
+        }
+
+        // 3️⃣ Cannot assign a role higher than your own
+        if (newRole.isHigherThan(currentRole)) {
+            throw new ForbiddenException("You cannot assign a role higher than your own");
+        }
+
+        // 4️⃣ Prevent no-op updates
+        if (targetRole == newRole) {
+            throw new BusinessValidationException("memberType", "Role is already assigned");
+        }
+    }
+
     public void ensureOnlyInviteNonMember(UUID workspaceId, String email) {
         if(workspaceMemberRepository.existsByWorkspace_IdAndUser_Email(workspaceId, email)) {
             throw new IllegalStateException("User is already a member of this workspace");
         }
     }
 
+    @Deprecated
     public void ensureRoleInProjectMember(UUID projectId, UUID userId, ProjectMember.ProjectMemberType... memberTypes) {
         ProjectMember member = projectMemberRepository.findByUserIdAndProjectId(userId, projectId)
                 .orElseThrow(() ->
@@ -174,24 +245,6 @@ public class PermissionHelper {
         }
     }
 
-    public void checkIsValidWorkspaceRoleChange(ProjectMember.ProjectMemberType currentRole,
-                                                 ProjectMember.ProjectMemberType targetRole,
-                                                 ProjectMember.ProjectMemberType newRole) {
-        // 1️⃣ Only OWNER or ADMIN can change roles
-        if (currentRole == ProjectMember.ProjectMemberType.VIEWER) {
-            throw new ForbiddenException("You are not allowed to change member roles");
-        }
-
-        // 2️⃣ Cannot change role of someone higher than you
-        if (targetRole.isHigherThan(currentRole)) {
-            throw new ForbiddenException("You cannot modify a member with a higher role");
-        }
-
-        // 5️⃣ Prevent no-op updates
-        if (targetRole == newRole) {
-            throw new BusinessValidationException("memberType", "Role is already assigned");
-        }
-    }
 
     public String generateNextTaskKey(UUID projectId) {
         Project project = projectRepository.findById(projectId)

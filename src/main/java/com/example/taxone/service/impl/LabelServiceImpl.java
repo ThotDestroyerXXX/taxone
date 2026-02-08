@@ -4,7 +4,7 @@ import com.example.taxone.dto.request.LabelRequest;
 import com.example.taxone.dto.response.LabelResponse;
 import com.example.taxone.entity.Label;
 import com.example.taxone.entity.User;
-import com.example.taxone.entity.WorkspaceMember;
+import com.example.taxone.entity.WorkspacePermission;
 import com.example.taxone.exception.ResourceNotFoundException;
 import com.example.taxone.mapper.LabelMapper;
 import com.example.taxone.repository.LabelRepository;
@@ -69,11 +69,11 @@ public class LabelServiceImpl implements LabelService {
         Label label = labelRepository.findById(labelUUID)
                 .orElseThrow(() -> new ResourceNotFoundException("Label not found"));
 
-        permissionHelper.ensureRoleInWorkspaceMember(
+        // Only users with PROJECT_CREATE permission (ADMIN and OWNER) can manage labels
+        permissionHelper.ensureWorkspacePermission(
                 label.getWorkspace().getId(),
                 user.getId(),
-                WorkspaceMember.MemberType.ADMIN,
-                WorkspaceMember.MemberType.OWNER
+                WorkspacePermission.PROJECT_CREATE
         );
 
         return label;

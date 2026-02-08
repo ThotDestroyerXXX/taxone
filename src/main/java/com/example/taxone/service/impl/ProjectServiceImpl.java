@@ -60,7 +60,8 @@ public class ProjectServiceImpl implements ProjectService {
         User user = authenticationHelper.getCurrentUser();
         UUID projectUUID = UUIDUtils.fromString(projectId, "project");
 
-        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.PROJECT_LEAD);
+        permissionHelper.ensureProjectPermission(projectUUID, user.getId(),
+                ProjectPermission.PROJECT_UPDATE);
 
         Project project = projectRepository.findById(projectUUID)
                 .orElseThrow(() ->
@@ -98,7 +99,8 @@ public class ProjectServiceImpl implements ProjectService {
         User user = authenticationHelper.getCurrentUser();
         UUID projectUUID = UUIDUtils.fromString(projectId, "project");
 
-        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.PROJECT_LEAD);
+        permissionHelper.ensureProjectPermission(projectUUID, user.getId(),
+                ProjectPermission.PROJECT_ARCHIVE);
 
         Project project = projectRepository.findById(projectUUID)
                 .orElseThrow(() ->
@@ -114,7 +116,8 @@ public class ProjectServiceImpl implements ProjectService {
         User user = authenticationHelper.getCurrentUser();
         UUID projectUUID = UUIDUtils.fromString(projectId, "project");
 
-        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.PROJECT_LEAD);
+        permissionHelper.ensureProjectPermission(projectUUID, user.getId(),
+                ProjectPermission.PROJECT_UPDATE);
 
         Project project = projectRepository.findById(projectUUID)
                 .orElseThrow(() ->
@@ -130,7 +133,8 @@ public class ProjectServiceImpl implements ProjectService {
         User user = authenticationHelper.getCurrentUser();
         UUID projectUUID = UUIDUtils.fromString(projectId, "project");
 
-        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.PROJECT_LEAD);
+        permissionHelper.ensureProjectPermission(projectUUID, user.getId(),
+                ProjectPermission.PROJECT_RESTORE);
 
         Project project = projectRepository.findById(projectUUID)
                 .orElseThrow(() ->
@@ -163,8 +167,8 @@ public class ProjectServiceImpl implements ProjectService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Project not found"));
 
-        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(),
-                ProjectMember.ProjectMemberType.PROJECT_LEAD, ProjectMember.ProjectMemberType.CONTRIBUTOR);
+        permissionHelper.ensureProjectPermission(projectUUID, user.getId(),
+                ProjectPermission.MEMBER_INVITE);
 
         // permissionHelper.ensure no duplicate invite
         permissionHelper.ensureOnlyInviteNonMember(projectUUID, invitationRequest.getEmail());
@@ -210,7 +214,7 @@ public class ProjectServiceImpl implements ProjectService {
         ProjectMember.ProjectMemberType targetRole = member.getMemberType();
         ProjectMember.ProjectMemberType newRole = ProjectMember.ProjectMemberType.valueOf(roleRequest.getMemberType());
 
-        permissionHelper.checkIsValidWorkspaceRoleChange(currentRole, targetRole, newRole);
+        permissionHelper.checkIsValidProjectRoleChange(currentRole, targetRole, newRole);
 
         // Update role
         member.setMemberType(newRole);
@@ -230,7 +234,8 @@ public class ProjectServiceImpl implements ProjectService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Member not found"));
 
-        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.PROJECT_LEAD);
+        permissionHelper.ensureProjectPermission(projectUUID, user.getId(),
+                ProjectPermission.MEMBER_REMOVE);
 
         projectMemberRepository.delete(member);
     }
@@ -245,8 +250,8 @@ public class ProjectServiceImpl implements ProjectService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Project not found"));
 
-        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(),
-                ProjectMember.ProjectMemberType.PROJECT_LEAD, ProjectMember.ProjectMemberType.CONTRIBUTOR);
+        permissionHelper.ensureProjectPermission(projectUUID, user.getId(),
+                ProjectPermission.INVITATION_CANCEL);
 
         // permissionHelper.ensure that the invitation exists
         ProjectInvitation existingProjectInvitation = projectInvitationRepository
@@ -265,8 +270,8 @@ public class ProjectServiceImpl implements ProjectService {
         User user = authenticationHelper.getCurrentUser();
         UUID projectUUID = UUIDUtils.fromString(projectId, "project");
 
-        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(),
-                ProjectMember.ProjectMemberType.PROJECT_LEAD, ProjectMember.ProjectMemberType.CONTRIBUTOR);
+        permissionHelper.ensureProjectPermission(projectUUID, user.getId(),
+                ProjectPermission.TASK_CREATE);
 
         Project project = projectRepository.findById(projectUUID)
                 .orElseThrow(() ->
@@ -300,8 +305,9 @@ public class ProjectServiceImpl implements ProjectService {
         User user = authenticationHelper.getCurrentUser();
         UUID projectUUID =  UUIDUtils.fromString(projectId, "project");
 
-        // permissionHelper.ensure user is member of project
-        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.values());
+        // permissionHelper.ensure user has TASK_VIEW permission
+        permissionHelper.ensureProjectPermission(projectUUID, user.getId(),
+                ProjectPermission.TASK_VIEW);
 
         List<Task> tasks = taskRepository.findAllByProjectId(projectUUID);
 
@@ -313,7 +319,8 @@ public class ProjectServiceImpl implements ProjectService {
         User user = authenticationHelper.getCurrentUser();
         UUID projectUUID = UUIDUtils.fromString(projectId, "project");
 
-        permissionHelper.ensureRoleInProjectMember(projectUUID, user.getId(), ProjectMember.ProjectMemberType.values());
+        permissionHelper.ensureProjectPermission(projectUUID, user.getId(),
+                ProjectPermission.TASK_VIEW);
 
         List<Task> tasks =
                 taskRepository.findByProjectWithFilters(projectUUID, filter);

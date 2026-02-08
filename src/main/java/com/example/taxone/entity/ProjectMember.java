@@ -9,6 +9,8 @@ import lombok.NoArgsConstructor;
 import org.hibernate.annotations.CreationTimestamp;
 
 import java.time.LocalDateTime;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
@@ -20,16 +22,44 @@ import java.util.UUID;
 public class ProjectMember {
 
     public enum ProjectMemberType {
-        PROJECT_LEAD,
-        CONTRIBUTOR,
-        VIEWER;
+        PROJECT_LEAD(EnumSet.allOf(ProjectPermission.class)),
+        CONTRIBUTOR(EnumSet.of(
+                ProjectPermission.PROJECT_VIEW,
+                ProjectPermission.MEMBER_VIEW,
+                ProjectPermission.MEMBER_INVITE,
+                ProjectPermission.TASK_CREATE,
+                ProjectPermission.TASK_VIEW,
+                ProjectPermission.TASK_UPDATE,
+                ProjectPermission.TASK_DELETE,
+                ProjectPermission.TASK_ASSIGN,
+                ProjectPermission.TASK_UNASSIGN,
+                ProjectPermission.LABEL_VIEW,
+                ProjectPermission.INVITATION_VIEW,
+                ProjectPermission.INVITATION_CANCEL
+        )),
+        VIEWER(EnumSet.of(
+                ProjectPermission.PROJECT_VIEW,
+                ProjectPermission.MEMBER_VIEW,
+                ProjectPermission.TASK_VIEW,
+                ProjectPermission.LABEL_VIEW
+        ));
+
+        private final Set<ProjectPermission> permissions;
+
+        ProjectMemberType(Set<ProjectPermission> permissions) {
+            this.permissions = permissions;
+        }
+
+        public boolean has(ProjectPermission permission) {
+            return permissions.contains(permission);
+        }
+
+        public Set<ProjectPermission> getPermissions() {
+            return permissions;
+        }
 
         public boolean isHigherThan(ProjectMemberType other) {
             return this.ordinal() < other.ordinal();
-        }
-
-        public boolean isLowerThan(ProjectMemberType other) {
-            return this.ordinal() > other.ordinal();
         }
     }
 
