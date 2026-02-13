@@ -40,4 +40,6 @@ public interface WorkspaceInvitationRepository extends JpaRepository<WorkspaceIn
     );
 
     Optional<WorkspaceInvitation> findByIdAndEmail(UUID workspaceInvitationUUID, String email);
+
+    List<WorkspaceInvitation> findAllByWorkspaceIdAndStatus(UUID workspaceUUID, InvitationStatus invitationStatus);
 }

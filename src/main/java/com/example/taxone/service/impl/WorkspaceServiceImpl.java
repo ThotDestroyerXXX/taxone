@@ -4,9 +4,13 @@ import com.example.taxone.dto.request.*;
 import com.example.taxone.dto.response.*;
 import com.example.taxone.entity.*;
 import com.example.taxone.entity.Label;
+import com.example.taxone.event.workspace.WorkspaceInvitedEvent;
+import com.example.taxone.event.workspace.WorkspaceRemovedEvent;
+import com.example.taxone.event.workspace.WorkspaceRoleChangedEvent;
 import com.example.taxone.exception.ResourceNotFoundException;
 import com.example.taxone.mapper.*;
 import com.example.taxone.repository.*;
+import com.example.taxone.service.EventPublisherService;
 import com.example.taxone.service.WorkspaceService;
 import com.example.taxone.util.AuthenticationHelper;
 import com.example.taxone.util.DateUtils;
@@ -16,7 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.awt.*;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -30,6 +34,7 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
     private final LabelRepository labelRepository;
+    private final UserRepository userRepository;
     private final WorkspaceMapper workspaceMapper;
     private final WorkspaceMemberMapper workspaceMemberMapper;
     private final WorkspaceInvitationMapper workspaceInvitationMapper;
@@ -38,6 +43,8 @@ public class WorkspaceServiceImpl implements WorkspaceService {
     private final AuthenticationHelper authenticationHelper;
     private final PermissionHelper permissionHelper;
     private final LabelMapper labelMapper;
+
+    private final EventPublisherService eventPublisherService;
 
     @Override
     public WorkspaceResponse createWorkspace(WorkspaceRequest workspaceRequest) {
@@ -127,6 +134,18 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         permissionHelper.ensureOwnerOfWorkspace(user, workspace);
 
         workspace.setIsActive(false);
+
+        List<WorkspaceMember> members = workspaceMemberRepository.findAllByWorkspaceId(workspaceUUID);
+        for(WorkspaceMember member : members) {
+            WorkspaceRemovedEvent event = WorkspaceRemovedEvent
+                    .builder()
+                    .workspaceId(workspace.getId())
+                    .workspaceName(workspace.getName())
+                    .userId(member.getUser().getId())
+                    .message("Workspace " + workspace.getName() + " has been removed.")
+                    .build();
+            eventPublisherService.publishNotificationEvent(event);
+        }
         workspaceRepository.save(workspace);
     }
 
@@ -175,6 +194,10 @@ public class WorkspaceServiceImpl implements WorkspaceService {
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Workspace not found"));
 
+        User existUser = userRepository.findByEmail(invitationRequest.getEmail())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User with email " + invitationRequest.getEmail() + " not found"));
+
         // permissionHelper.ensure only users with MEMBER_INVITE permission can invite
         permissionHelper.ensureWorkspacePermission(workspaceUUID, user.getId(),
                 WorkspacePermission.MEMBER_INVITE);
@@ -198,6 +221,19 @@ public class WorkspaceServiceImpl implements WorkspaceService {
                                         .workspace(workspace)
                                         .build();
         workspaceInvitationRepository.save(newInvite);
+
+        // notification
+        WorkspaceInvitedEvent event = WorkspaceInvitedEvent
+                .builder()
+                .workspaceId(workspace.getId())
+                .workspaceName(workspace.getName())
+                .role(newInvite.getMemberType().name())
+                .invitedBy(user.getId())
+                .userId(existUser.getId())
+                .message("You have been invited to join the workspace: " + workspace.getName())
+                .build();
+
+        eventPublisherService.publishNotificationEvent(event);
 
         return workspaceInvitationMapper.toResponse(newInvite);
     }
@@ -244,6 +280,16 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         member.setMemberType(newRole);
         workspaceMemberRepository.save(member);
 
+        WorkspaceRoleChangedEvent event = WorkspaceRoleChangedEvent
+                .builder()
+                .workspaceId(workspaceUUID)
+                .workspaceName(member.getWorkspace().getName())
+                .userId(member.getUser().getId())
+                .newRole(newRole.name())
+                .message("Your role in workspace " + member.getWorkspace().getName() +
+                        " has been changed to " + newRole.name())
+                .build();
+
         return workspaceMemberMapper.toResponse(member);
     }
 
@@ -276,7 +322,8 @@ public class WorkspaceServiceImpl implements WorkspaceService {
         // permissionHelper.ensure user is member of workspace
         permissionHelper.ensureWorkspaceMember(user.getId(), workspaceUUID);
 
-        List<WorkspaceInvitation> invitations = workspaceInvitationRepository.findAllByWorkspaceId(workspaceUUID);
+        List<WorkspaceInvitation> invitations = workspaceInvitationRepository.findAllByWorkspaceIdAndStatus(
+                workspaceUUID, InvitationStatus.PENDING);
 
         return workspaceInvitationMapper.toResponseList(invitations);
     }

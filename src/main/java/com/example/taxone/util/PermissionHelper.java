@@ -27,7 +27,7 @@ public class PermissionHelper {
 
     // Permission-based checks for projects
     public void ensureProjectPermission(UUID projectId, UUID userId, ProjectPermission... permissions) {
-        ProjectMember member = projectMemberRepository.findByUserIdAndProjectId(userId, projectId)
+        ProjectMember member = projectMemberRepository.findFirstByUserIdAndProjectId(userId, projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Member not found in project"));
 
         boolean hasPermission = Arrays.stream(permissions)
@@ -54,7 +54,7 @@ public class PermissionHelper {
     // Legacy methods - kept for backward compatibility
     @Deprecated
     public void ensureRoleInProject(UUID projectId, UUID userId, ProjectMember.ProjectMemberType... memberTypes) {
-        ProjectMember member = projectMemberRepository.findByUserIdAndProjectId(userId, projectId)
+        ProjectMember member = projectMemberRepository.findFirstByUserIdAndProjectId(userId, projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Member not found in project"));
 
         boolean hasRole = Arrays.stream(memberTypes)
@@ -103,7 +103,7 @@ public class PermissionHelper {
 
     // Helper method to get project member
     public ProjectMember getProjectMember(UUID userId, UUID projectId) {
-        return projectMemberRepository.findByUserIdAndProjectId(userId, projectId)
+        return projectMemberRepository.findFirstByUserIdAndProjectId(userId, projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Member not found in project"));
     }
 
@@ -193,7 +193,7 @@ public class PermissionHelper {
 
     @Deprecated
     public void ensureRoleInProjectMember(UUID projectId, UUID userId, ProjectMember.ProjectMemberType... memberTypes) {
-        ProjectMember member = projectMemberRepository.findByUserIdAndProjectId(userId, projectId)
+        ProjectMember member = projectMemberRepository.findFirstByUserIdAndProjectId(userId, projectId)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Member not found"));
 
@@ -239,10 +239,91 @@ public class PermissionHelper {
                         new ResourceNotFoundException("Project not found"));
 
         if(!project.getIsPublic()) {
-            ProjectMember member = projectMemberRepository.findByUserIdAndProjectId(userId, projectId)
+            ProjectMember member = projectMemberRepository.findFirstByUserIdAndProjectId(userId, projectId)
                     .orElseThrow(() ->
                             new ForbiddenException("You are not allowed to view this project"));
         }
+    }
+
+    /**
+     * Ensures user can access project based on:
+     * - If project is private: User must be a project member
+     * - If project is public: User must be either a project member OR a workspace member
+     */
+    public void ensureProjectAccessOrWorkspaceMemberForPublic(UUID projectId, UUID userId) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Project not found"));
+
+        // Check if user is a project member first
+        Optional<ProjectMember> projectMember = projectMemberRepository.findFirstByUserIdAndProjectId(userId, projectId);
+
+        if (projectMember.isPresent()) {
+            return; // User is a project member, access granted
+        }
+
+        // If not a project member, check if project is public and user is a workspace member
+        if (project.getIsPublic()) {
+            UUID workspaceId = project.getWorkspace().getId();
+            boolean isWorkspaceMember = workspaceMemberRepository.existsByUserIdAndWorkspaceId(userId, workspaceId);
+
+            if (!isWorkspaceMember) {
+                throw new ForbiddenException("You are not allowed to access this project");
+            }
+        } else {
+            // Project is private and user is not a project member
+            throw new ForbiddenException("You are not allowed to access this project");
+        }
+    }
+
+    /**
+     * Ensures user has required permission for project based on:
+     * - If project is private: User must be a project member with the required permission
+     * - If project is public: User can be either a project member OR a workspace member (for view permissions only)
+     */
+    public void ensureProjectPermissionOrWorkspaceMemberForPublic(UUID projectId, UUID userId, ProjectPermission... permissions) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Project not found"));
+
+        // Check if user is a project member first
+        Optional<ProjectMember> projectMemberOpt = projectMemberRepository.findFirstByUserIdAndProjectId(userId, projectId);
+
+        if (projectMemberOpt.isPresent()) {
+            // User is a project member, check permissions
+            ProjectMember projectMember = projectMemberOpt.get();
+            boolean hasAllPermissions = Arrays.stream(permissions)
+                    .allMatch(permission -> projectMember.getMemberType().has(permission));
+
+            if (!hasAllPermissions) {
+                throw new ForbiddenException("You do not have permission to perform this action");
+            }
+            return;
+        }
+
+        // If not a project member, check if project is public and user is a workspace member
+        // Only allow view permissions for workspace members on public projects
+        if (project.getIsPublic()) {
+            boolean onlyViewPermissions = Arrays.stream(permissions)
+                    .allMatch(permission ->
+                        permission == ProjectPermission.PROJECT_VIEW ||
+                        permission == ProjectPermission.TASK_VIEW ||
+                        permission == ProjectPermission.MEMBER_VIEW ||
+                        permission == ProjectPermission.LABEL_VIEW
+                    );
+
+            if (onlyViewPermissions) {
+                UUID workspaceId = project.getWorkspace().getId();
+                boolean isWorkspaceMember = workspaceMemberRepository.existsByUserIdAndWorkspaceId(userId, workspaceId);
+
+                if (isWorkspaceMember) {
+                    return; // Workspace member can view public project content
+                }
+            }
+        }
+
+        // If we reach here, access is denied
+        throw new ForbiddenException("You do not have permission to perform this action");
     }
 
 

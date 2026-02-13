@@ -6,10 +6,14 @@ import com.example.taxone.dto.request.TaskChangeStatusRequest;
 import com.example.taxone.dto.request.TaskUpdateRequest;
 import com.example.taxone.dto.response.TaskResponse;
 import com.example.taxone.entity.*;
+import com.example.taxone.event.task.TaskAssignedEvent;
+import com.example.taxone.event.task.TaskStatusChangedEvent;
+import com.example.taxone.event.task.TaskUnassignedEvent;
 import com.example.taxone.exception.ResourceNotFoundException;
 import com.example.taxone.mapper.TaskMapper;
 import com.example.taxone.repository.ProjectRepository;
 import com.example.taxone.repository.TaskRepository;
+import com.example.taxone.service.EventPublisherService;
 import com.example.taxone.service.TaskService;
 import com.example.taxone.util.AuthenticationHelper;
 import com.example.taxone.util.PermissionHelper;
@@ -30,6 +34,8 @@ public class TaskServiceImpl implements TaskService {
 
     private final AuthenticationHelper authenticationHelper;
     private final PermissionHelper permissionHelper;
+
+    private final EventPublisherService eventPublisherService;
 
     @Override
     public TaskResponse getTask(String taskId) {
@@ -57,6 +63,47 @@ public class TaskServiceImpl implements TaskService {
 
         permissionHelper.ensureProjectPermission(task.getProject().getId(), user.getId(),
                 ProjectPermission.TASK_UPDATE);
+
+        List<ProjectMember> projectMembers = projectRepository.findById(task.getProject().getId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Project not found"))
+                .getProjectMembers();
+
+        if(!task.getPriority().toString().equals(taskUpdateRequest.getPriority())) {
+            for(ProjectMember projectMember : projectMembers) {
+                if(!projectMember.getUser().getId().equals(user.getId())) {
+                    eventPublisherService.publishNotificationEvent(
+                            TaskStatusChangedEvent
+                                    .builder()
+                                    .changedBy(user.getId())
+                                    .message("Priority of task '" + task.getTitle() + "' changed to " + taskUpdateRequest.getPriority())
+                                    .taskTitle(task.getTitle())
+                                    .newStatus(taskUpdateRequest.getPriority())
+                                    .taskId(task.getId())
+                                    .userId(projectMember.getUser().getId())
+                                    .build()
+                    );
+                }
+            }
+        }
+
+        if(!task.getDueDate().equals(taskUpdateRequest.getDueDate())) {
+            for(ProjectMember projectMember : projectMembers) {
+                if(!projectMember.getUser().getId().equals(user.getId())) {
+                    eventPublisherService.publishNotificationEvent(
+                            TaskStatusChangedEvent
+                                    .builder()
+                                    .changedBy(user.getId())
+                                    .message("Due date of task '" + task.getTitle() + "' changed to " + taskUpdateRequest.getDueDate())
+                                    .taskTitle(task.getTitle())
+                                    .newStatus(taskUpdateRequest.getDueDate().toString())
+                                    .taskId(task.getId())
+                                    .userId(projectMember.getUser().getId())
+                                    .build()
+                    );
+                }
+            }
+        }
 
         task.setDescription(taskUpdateRequest.getDescription());
         task.setDueDate(taskUpdateRequest.getDueDate());
@@ -98,6 +145,27 @@ public class TaskServiceImpl implements TaskService {
 
         task.setStatus(Task.TaskStatus.valueOf(taskChangeStatusRequest.getStatus()));
         taskRepository.save(task);
+
+        List<ProjectMember> projectMembers = projectRepository.findById(task.getProject().getId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("Project not found"))
+                .getProjectMembers();
+
+        for (ProjectMember projectMember : projectMembers) {
+            if (!projectMember.getUser().getId().equals(user.getId())) {
+                eventPublisherService.publishNotificationEvent(
+                        TaskStatusChangedEvent
+                                .builder()
+                                .changedBy(user.getId())
+                                .message("Status of task '" + task.getTitle() + "' changed to " + task.getStatus())
+                                .taskTitle(task.getTitle())
+                                .newStatus(task.getStatus().toString())
+                                .taskId(task.getId())
+                                .userId(projectMember.getUser().getId())
+                                .build()
+                );
+            }
+        }
 
         return  taskMapper.toResponse(task);
     }
@@ -257,8 +325,42 @@ public class TaskServiceImpl implements TaskService {
                 permissionHelper.ensureAllAssigneeExists(request.getAssigneeIds());
 
         switch (action) {
-            case ASSIGN -> task.setAssignees(assignees);
-            case UNASSIGN -> task.getAssignees().removeAll(assignees);
+            case ASSIGN -> {
+                task.setAssignees(assignees);
+
+                for(UUID assigneeId : request.getAssigneeIds()) {
+                    if (!assigneeId.equals(user.getId())) {
+                        eventPublisherService.publishNotificationEvent(
+                                TaskAssignedEvent
+                                        .builder()
+                                        .assignedBy(user.getId())
+                                        .message("You have been assigned to task '" + task.getTitle() + "'")
+                                        .taskTitle(task.getTitle())
+                                        .taskId(task.getId())
+                                        .userId(assigneeId)
+                                        .build()
+                        );
+                    }
+                }
+            }
+            case UNASSIGN -> {
+                task.getAssignees().removeAll(assignees);
+
+                for(UUID assigneeId : request.getAssigneeIds()) {
+                    if (!assigneeId.equals(user.getId())) {
+                        eventPublisherService.publishNotificationEvent(
+                                TaskUnassignedEvent
+                                        .builder()
+                                        .unassignedBy(user.getId())
+                                        .message("You have been unassigned from task '" + task.getTitle() + "'")
+                                        .taskTitle(task.getTitle())
+                                        .taskId(task.getId())
+                                        .userId(assigneeId)
+                                        .build()
+                        );
+                    }
+                }
+            }
         }
 
         taskRepository.save(task);

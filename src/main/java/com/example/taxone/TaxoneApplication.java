@@ -9,5 +9,4 @@ public class TaxoneApplication {
     public static void main(String[] args) {
         SpringApplication.run(TaxoneApplication.class, args);
     }
-
 }

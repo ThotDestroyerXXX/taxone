@@ -6,12 +6,16 @@ import com.example.taxone.dto.response.ProjectMemberResponse;
 import com.example.taxone.dto.response.ProjectResponse;
 import com.example.taxone.dto.response.TaskResponse;
 import com.example.taxone.entity.*;
+import com.example.taxone.event.project.ProjectAssignedEvent;
+import com.example.taxone.event.project.ProjectRemovedEvent;
+import com.example.taxone.event.project.ProjectRoleChangedEvent;
 import com.example.taxone.exception.ResourceNotFoundException;
 import com.example.taxone.mapper.ProjectInvitationMapper;
 import com.example.taxone.mapper.ProjectMapper;
 import com.example.taxone.mapper.ProjectMemberMapper;
 import com.example.taxone.mapper.TaskMapper;
 import com.example.taxone.repository.*;
+import com.example.taxone.service.EventPublisherService;
 import com.example.taxone.service.ProjectService;
 import com.example.taxone.util.AuthenticationHelper;
 import com.example.taxone.util.DateUtils;
@@ -21,7 +25,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.awt.*;
 import java.util.*;
 import java.util.List;
 
@@ -32,6 +35,7 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectRepository projectRepository;
     private final ProjectMemberRepository projectMemberRepository;
     private final TaskRepository taskRepository;
+    private final UserRepository userRepository;
     private final ProjectInvitationRepository projectInvitationRepository;
     private final ProjectMapper projectMapper;
     private final ProjectMemberMapper projectMemberMapper;
@@ -41,12 +45,16 @@ public class ProjectServiceImpl implements ProjectService {
     private final AuthenticationHelper authenticationHelper;
     private final PermissionHelper permissionHelper;
 
+    private final EventPublisherService eventPublisherService;
+
     @Override
     public ProjectResponse getProject(String projectId) {
         User user = authenticationHelper.getCurrentUser();
         UUID projectUUID = UUIDUtils.fromString(projectId, "project");
 
-        permissionHelper.ensureProjectMemberOrIsPublic(projectUUID, user.getId());
+        // Allow project members OR workspace members if project is public
+        permissionHelper.ensureProjectPermissionOrWorkspaceMemberForPublic(projectUUID, user.getId(),
+                ProjectPermission.PROJECT_VIEW);
 
         Project project = projectRepository.findById(projectUUID)
                 .orElseThrow(() ->
@@ -150,7 +158,9 @@ public class ProjectServiceImpl implements ProjectService {
         User user = authenticationHelper.getCurrentUser();
         UUID projectUUID = UUIDUtils.fromString(projectId, "project");
 
-        permissionHelper.ensureProjectMemberOrIsPublic(projectUUID, user.getId());
+        // Allow project members OR workspace members if project is public
+        permissionHelper.ensureProjectPermissionOrWorkspaceMemberForPublic(projectUUID, user.getId(),
+                ProjectPermission.MEMBER_VIEW);
 
         List<ProjectMember> projectMembers = projectMemberRepository.findAllByProjectId(projectUUID);
 
@@ -173,6 +183,10 @@ public class ProjectServiceImpl implements ProjectService {
         // permissionHelper.ensure no duplicate invite
         permissionHelper.ensureOnlyInviteNonMember(projectUUID, invitationRequest.getEmail());
 
+        User existUser = userRepository.findByEmail(invitationRequest.getEmail())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException("User with email " + invitationRequest.getEmail() + " not found"));
+
         // change status of other pending status by invited by to expired
         projectInvitationRepository.expirePendingInvites(
                 projectUUID,
@@ -190,6 +204,18 @@ public class ProjectServiceImpl implements ProjectService {
                 .build();
         projectInvitationRepository.save(newInvite);
 
+        ProjectAssignedEvent event = ProjectAssignedEvent
+                .builder()
+                .role(invitationRequest.getMemberType())
+                .message("You have been invited to join the project: " + project.getName())
+                .addedBy(user.getId())
+                .projectId(projectUUID)
+                .projectName(project.getName())
+                .userId(existUser.getId())
+                .build();
+
+        eventPublisherService.publishNotificationEvent(event);
+
         return projectInvitationMapper.toResponse(newInvite);
     }
 
@@ -201,12 +227,12 @@ public class ProjectServiceImpl implements ProjectService {
         UUID memberUUID = UUIDUtils.fromString(memberId, "member");
 
         // find member by searching for workspace id and member id
-        ProjectMember member = projectMemberRepository.findByIdAndProjectId(memberUUID, projectUUID)
+        ProjectMember member = projectMemberRepository.findFirstByIdAndProjectId(memberUUID, projectUUID)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Member not found"));
 
         // get current user's role in workspace member
-        ProjectMember currentUserMember = projectMemberRepository.findByUserIdAndProjectId(user.getId(), projectUUID)
+        ProjectMember currentUserMember = projectMemberRepository.findFirstByUserIdAndProjectId(user.getId(), projectUUID)
             .orElseThrow(() ->
                     new ResourceNotFoundException("Member not found"));
 
@@ -220,6 +246,18 @@ public class ProjectServiceImpl implements ProjectService {
         member.setMemberType(newRole);
         projectMemberRepository.save(member);
 
+        ProjectRoleChangedEvent event = ProjectRoleChangedEvent
+                .builder()
+                .message("Your role in project " + member.getProject().getName() +
+                        " has been changed to " + newRole.name())
+                .changedBy(user.getId())
+                .projectId(projectUUID)
+                .projectName(member.getProject().getName())
+                .newRole(newRole.name())
+                .userId(member.getUser().getId())
+                .build();
+        eventPublisherService.publishNotificationEvent(event);
+
         return projectMemberMapper.toResponse(member);
     }
 
@@ -230,12 +268,22 @@ public class ProjectServiceImpl implements ProjectService {
         UUID memberUUID = UUIDUtils.fromString(memberId, "member");
 
         // find member by searching for workspace id and member id
-        ProjectMember member = projectMemberRepository.findByIdAndProjectId(memberUUID, projectUUID)
+        ProjectMember member = projectMemberRepository.findFirstByIdAndProjectId(memberUUID, projectUUID)
                 .orElseThrow(() ->
                         new ResourceNotFoundException("Member not found"));
 
         permissionHelper.ensureProjectPermission(projectUUID, user.getId(),
                 ProjectPermission.MEMBER_REMOVE);
+
+        ProjectRemovedEvent event = ProjectRemovedEvent
+                .builder()
+                .message("You have been removed from the project: " + member.getProject().getName())
+                .removedBy(user.getId())
+                .projectId(projectUUID)
+                .projectName(member.getProject().getName())
+                .userId(member.getUser().getId())
+                .build();
+        eventPublisherService.publishNotificationEvent(event);
 
         projectMemberRepository.delete(member);
     }
@@ -305,8 +353,8 @@ public class ProjectServiceImpl implements ProjectService {
         User user = authenticationHelper.getCurrentUser();
         UUID projectUUID =  UUIDUtils.fromString(projectId, "project");
 
-        // permissionHelper.ensure user has TASK_VIEW permission
-        permissionHelper.ensureProjectPermission(projectUUID, user.getId(),
+        // Allow project members OR workspace members if project is public
+        permissionHelper.ensureProjectPermissionOrWorkspaceMemberForPublic(projectUUID, user.getId(),
                 ProjectPermission.TASK_VIEW);
 
         List<Task> tasks = taskRepository.findAllByProjectId(projectUUID);
@@ -319,7 +367,8 @@ public class ProjectServiceImpl implements ProjectService {
         User user = authenticationHelper.getCurrentUser();
         UUID projectUUID = UUIDUtils.fromString(projectId, "project");
 
-        permissionHelper.ensureProjectPermission(projectUUID, user.getId(),
+        // Allow project members OR workspace members if project is public
+        permissionHelper.ensureProjectPermissionOrWorkspaceMemberForPublic(projectUUID, user.getId(),
                 ProjectPermission.TASK_VIEW);
 
         List<Task> tasks =
@@ -329,53 +378,4 @@ public class ProjectServiceImpl implements ProjectService {
                 .map(taskMapper::toResponse)
                 .toList();
     }
-
-    public List<Task> filterTasks(UUID projectId, TaskFilterRequest filter) {
-        return taskRepository.findAll(
-                TaskSpecification.withFilters(projectId, filter)
-        );
-    }
-
-
-
-    // Helper method to add assignees later
-//    public TaskResponse addAssignee(UUID taskId, UUID userId, User currentUser) {
-//        Task task = taskRepository.findById(taskId)
-//                .orElseThrow(() -> new ResourceNotFoundException("Task not found"));
-//
-//        User assignee = userRepository.findById(userId)
-//                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-//
-//        // Check if already assigned
-//        if (task.getAssignees().contains(assignee)) {
-//            throw new IllegalStateException("User already assigned to this task");
-//        }
-//
-//        // Add assignee
-//        task.getAssignees().add(assignee);
-//        Task savedTask = taskRepository.save(task);
-//
-//        return taskMapper.toResponse(savedTask);
-//    }
-//
-//    // Helper method to remove assignee
-//    public TaskResponse removeAssignee(UUID taskId, UUID userId, User currentUser) {
-//        Task task = taskRepository.findById(taskId)
-//                .orElseThrow(() -> new ResourceNotFoundException("Task not found"));
-//
-//        User assignee = userRepository.findById(userId)
-//                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-//
-//        // Remove assignee
-//        boolean removed = task.getAssignees().remove(assignee);
-//
-//        if (!removed) {
-//            throw new IllegalStateException("User not assigned to this task");
-//        }
-//
-//        Task savedTask = taskRepository.save(task);
-//
-//        return taskMapper.toResponse(savedTask);
-//    }
-
 }
